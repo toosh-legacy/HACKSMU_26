@@ -211,5 +211,3 @@ filename,start_time,end_time,call_type,noise_type
 99-45_vehicle_02.wav,127.8614,131.4264948,rumble,car
 99-45_vehicle_02.wav,139.887,145.3144578,rumble,car
 J86-1_airplane_01.wav,192.4952,198.9336548,rumble,airplane
-</content>
-</invoke>
