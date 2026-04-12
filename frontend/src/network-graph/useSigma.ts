@@ -388,7 +388,15 @@ export const useSigma = (options: UseSigmaOptions = {}): UseSigmaReturn => {
 
     const inferredSettings = forceAtlas2.inferSettings(graph);
     const customSettings = getFA2Settings(nodeCount);
-    const layout = new FA2Layout(graph, { settings: { ...inferredSettings, ...customSettings } });
+    const mergedSettings = { ...inferredSettings, ...customSettings };
+
+    // Pre-settle: run synchronous iterations so nodes start at reasonable
+    // positions before the worker kicks in, eliminating the initial glitch.
+    const preIterations = nodeCount > 2000 ? 30 : nodeCount > 500 ? 60 : 100;
+    forceAtlas2.assign(graph, { settings: mergedSettings, iterations: preIterations });
+    sigmaRef.current?.refresh();
+
+    const layout = new FA2Layout(graph, { settings: mergedSettings });
 
     layoutRef.current = layout;
     layout.start();
@@ -413,8 +421,10 @@ export const useSigma = (options: UseSigmaOptions = {}): UseSigmaReturn => {
     graphRef.current = newGraph;
     sigma.setGraph(newGraph);
     setSelectedNode(null);
+    // runLayout pre-settles nodes synchronously before starting the worker,
+    // so the camera reset fits to already-meaningful positions.
     runLayout(newGraph);
-    sigma.getCamera().animatedReset({ duration: 500 });
+    sigma.getCamera().animatedReset({ duration: 600 });
   }, [runLayout, setSelectedNode]);
 
   const focusNode = useCallback((nodeId: string) => {

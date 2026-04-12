@@ -14,11 +14,11 @@ class ClusteringAgent(mp.Process):
     Triggered ONCE when all results are collected (receives list via queue).
     Runs UMAP + K-means, builds Tribe similarity graph, calls Claude API.
     """
-    def __init__(self, in_queue, output_dir, claude_api_key=None):
+    def __init__(self, in_queue, output_dir, gemini_api_key=None):
         super().__init__(daemon=True)
         self.in_queue   = in_queue
         self.output_dir = Path(output_dir)
-        self.api_key    = claude_api_key
+        self.api_key    = gemini_api_key
         self.context_fields = [
             "elephant_id",
             "age_class",
@@ -266,9 +266,10 @@ class ClusteringAgent(mp.Process):
 
     def _generate_hypotheses(self, summaries: dict):
         try:
-            import anthropic
-            client = anthropic.Anthropic(api_key=self.api_key)
-            total  = sum(v['count'] for v in summaries.values())
+            import google.generativeai as genai
+            genai.configure(api_key=self.api_key)
+            model = genai.GenerativeModel("gemini-1.5-flash")
+            total = sum(v['count'] for v in summaries.values())
             prompt = (
                 f"You are an expert in elephant bioacoustics and animal communication.\n\n"
                 f"I clustered {total} elephant rumble calls into "
@@ -287,11 +288,8 @@ class ClusteringAgent(mp.Process):
                 "3. What are the 3 most important hypotheses to test?\n"
                 "Be specific and cite acoustic properties in your reasoning."
             )
-            resp = client.messages.create(
-                model="claude-sonnet-4-6", max_tokens=1000,
-                messages=[{"role": "user", "content": prompt}]
-            )
-            (self.output_dir / "ai_hypotheses.txt").write_text(resp.content[0].text)
-            print("[Clustering] AI hypotheses saved to ai_hypotheses.txt")
+            resp = model.generate_content(prompt)
+            (self.output_dir / "ai_hypotheses.txt").write_text(resp.text)
+            print("[Clustering] Gemini hypotheses saved to ai_hypotheses.txt")
         except Exception as e:
-            print(f"[Clustering] Claude API failed: {e}")
+            print(f"[Clustering] Gemini API failed: {e}")

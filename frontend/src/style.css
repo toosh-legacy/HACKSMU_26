@@ -15,7 +15,7 @@
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
-  --charcoal: #2C2C2C;
+  --charcoal: #1a1a1a;
   --sienna: #E2703A;
   --sienna-dark: #c95e2e;
   --yellow: #F4C842;
@@ -528,6 +528,98 @@ tr:hover { background: var(--bg); }
 .cluster-network-btn:hover {
   background: rgba(226,112,58,0.18);
   border-color: var(--sienna);
+}
+
+/* ── AI Hypotheses Panel ────────────────────────────────── */
+#ai-hypotheses-panel {
+  margin-top: 2rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: linear-gradient(135deg, rgba(226,112,58,0.04) 0%, rgba(18,18,28,0.95) 60%);
+  overflow: hidden;
+}
+.hypotheses-header {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 1rem 1.25rem 0.75rem;
+  border-bottom: 1px solid var(--border);
+}
+.hypotheses-badge {
+  font-size: 0.6rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--sienna);
+  background: rgba(226,112,58,0.12);
+  border: 1px solid rgba(226,112,58,0.3);
+  padding: 0.2rem 0.55rem;
+  border-radius: 3px;
+}
+.hypotheses-title {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--linen);
+  margin: 0;
+}
+.hypotheses-body {
+  padding: 1.25rem 1.5rem;
+  font-size: 0.82rem;
+  line-height: 1.75;
+  color: var(--text-secondary);
+  max-height: 60vh;
+  overflow-y: auto;
+}
+.hypotheses-body h2 {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--linen);
+  margin: 1.4rem 0 0.5rem;
+  padding-bottom: 0.3rem;
+  border-bottom: 1px solid var(--border);
+}
+.hypotheses-body h2:first-child { margin-top: 0; }
+.hypotheses-body h3 {
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--sienna);
+  margin: 1.1rem 0 0.35rem;
+}
+.hypotheses-body p { margin: 0.4rem 0; }
+.hypotheses-body strong { color: var(--linen); font-weight: 600; }
+.hypotheses-body em { color: var(--text-muted); font-style: italic; }
+.hypotheses-body hr {
+  border: none;
+  border-top: 1px solid var(--border);
+  margin: 1rem 0;
+}
+.hypotheses-body table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 0.75rem 0;
+  font-size: 0.78rem;
+}
+.hypotheses-body th {
+  text-align: left;
+  padding: 0.4rem 0.6rem;
+  background: rgba(255,255,255,0.04);
+  color: var(--linen);
+  font-weight: 600;
+  border-bottom: 1px solid var(--border);
+}
+.hypotheses-body td {
+  padding: 0.35rem 0.6rem;
+  border-bottom: 1px solid rgba(255,255,255,0.04);
+  color: var(--text-secondary);
+}
+.hypotheses-body tr:last-child td { border-bottom: none; }
+.hypotheses-body code {
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  background: rgba(255,255,255,0.06);
+  padding: 0.1rem 0.35rem;
+  border-radius: 3px;
+  color: var(--sienna);
 }
 
 /* ── Network ─────────────────────────────────────────────── */

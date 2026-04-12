@@ -75,8 +75,6 @@ python main.py
 # Edit main.py: set SEQUENTIAL_MODE = False
 python main.py
 
-# Dashboard
-streamlit run dashboard/app.py
 ```
 
 ## Quick Smoke Tests
