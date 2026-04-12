@@ -1,0 +1,20 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python -c \"from agents.base import BaseAgent, SENTINEL; print\\('base OK'\\)\")",
+      "Bash(ls /c/Users/tusha/Documents/hackathons/smu/HACKSMU_26/recordings/*.wav)",
+      "Bash(python:*)",
+      "Bash(pip install:*)",
+      "Bash(ls results/*.wav)",
+      "Bash(ls results/*.png)",
+      "Bash(git fetch:*)",
+      "Bash(git reset:*)",
+      "Bash(python3:*)",
+      "Bash(pip3 install:*)",
+      "Read(//usr/local/bin/**)",
+      "Read(//home/tusha/.local/bin/**)",
+      "Bash(find / -name \"pip*\" -maxdepth 6)",
+      "Bash(sudo apt-get:*)"
+    ]
+  }
+}
