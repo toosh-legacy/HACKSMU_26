@@ -2,6 +2,10 @@ import multiprocessing as mp
 import numpy as np
 from pathlib import Path
 import json
+from agents.runtime import configure_runtime
+from agents.serialization import tabular_result
+
+configure_runtime()
 
 class ClusteringAgent(mp.Process):
     """
@@ -95,7 +99,7 @@ class ClusteringAgent(mp.Process):
         (self.output_dir / "cluster_summaries.json").write_text(
             json.dumps(summaries, indent=2))
         # Save updated results with cluster info
-        pd.DataFrame(all_results).to_csv(
+        pd.DataFrame([tabular_result(r) for r in all_results]).to_csv(
             self.output_dir / "batch_results_clustered.csv", index=False)
 
         print(f"[Clustering] {k} clusters | {len(edges)} Tribe edges")

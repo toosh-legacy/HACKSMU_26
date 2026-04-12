@@ -16,6 +16,8 @@ import pandas as pd
 import numpy as np
 import time
 
+from agents.runtime        import configure_runtime
+from agents.serialization  import tabular_result
 from agents.base           import SENTINEL
 from agents.preprocess     import PreprocessAgent
 from agents.fingerprint    import FingerprintAgent
@@ -25,6 +27,8 @@ from agents.overlap        import OverlapAgent
 from agents.quality_scorer import QualityScorerAgent
 from agents.sensecap       import SenseCapAgent
 from agents.clustering     import ClusteringAgent
+
+configure_runtime()
 
 SEQUENTIAL_MODE = True    # set True to debug without multiprocessing
 N_WORKERS       = 4       # match your CPU core count
@@ -123,7 +127,16 @@ def run_sequential(csv_path, audio_dir, output_dir):
         except Exception as e:
             print(f"✗ {call_id}: {e}")
 
-    pd.DataFrame(results).to_csv(out / "batch_results.csv", index=False)
+    pd.DataFrame([tabular_result(r) for r in results]).to_csv(
+        out / "batch_results.csv", index=False)
+    try:
+        q_clust = mp.Queue(maxsize=1)
+        cluster = ClusteringAgent(q_clust, output_dir)
+        cluster.start()
+        q_clust.put(results)
+        cluster.join(timeout=60)
+    except Exception as e:
+        print(f"[Main] clustering skipped in sequential mode: {e}")
     return results
 
 
@@ -211,7 +224,8 @@ def launch_parallel(csv_path, audio_dir, output_dir,
     for a in agents: a.join(timeout=30)
 
     # Final summary
-    pd.DataFrame(all_results).to_csv(f"{output_dir}/batch_results.csv", index=False)
+    pd.DataFrame([tabular_result(r) for r in all_results]).to_csv(
+        f"{output_dir}/batch_results.csv", index=False)
     valid_n     = sum(1 for r in all_results if r.get('valid'))
     elapsed     = time.time() - t0
     noise_types = set(r.get('noise_type', '?') for r in all_results)

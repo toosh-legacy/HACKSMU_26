@@ -1,4 +1,8 @@
 import numpy as np
+from agents.runtime import configure_runtime
+
+configure_runtime()
+
 import librosa
 from agents.base import BaseAgent
 
