@@ -239,6 +239,22 @@ body {
   letter-spacing: 0.06em;
 }
 .tagline { display: none; }
+.header-right { display: flex; align-items: center; }
+.avatar-btn {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: var(--sienna);
+  border: none;
+  color: var(--linen);
+  font-family: var(--font);
+  font-size: 0.75rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: opacity var(--transition);
+  letter-spacing: 0.02em;
+}
+.avatar-btn:hover { opacity: 0.8; }
 
 /* ── Bottom floating nav ─────────────────────────────────── */
 #app-nav-root {
