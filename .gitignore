@@ -16,3 +16,4 @@ rumbleos/results/
 rumbleos/data/recordings/
 </content>
 </invoke>
+.claude/settings.local.json
