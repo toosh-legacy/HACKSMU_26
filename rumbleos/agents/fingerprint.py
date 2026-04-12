@@ -17,18 +17,28 @@ class FingerprintAgent(BaseAgent):
     def process(self, msg: dict) -> dict:
         if 'error' in msg: return msg
 
+        # If upstream already supplied a label (e.g. from CSV ground truth),
+        # trust it. Heuristic only runs for live/unlabeled audio.
+        if msg.get('noise_type'):
+            return msg
+
         audio = msg['segment']
         sr    = msg['sr']
         freqs, psd = welch(audio, fs=sr, nperseg=2048)
 
-        def check_harmonics(f0: float, tol: float = 3.0):
+        # Local floor: median PSD in the 50-500 Hz band where generator harmonics live.
+        # Global p20 was too low (bandpass concentrates energy < 200 Hz), causing
+        # any residual mains hum to register as a generator.
+        local_band = (freqs >= 50) & (freqs <= 500)
+        floor      = float(np.median(psd[local_band])) + 1e-12
+
+        def check_harmonics(f0: float, tol: float = 2.0, mult: float = 12.0):
             count, score = 0, 0.0
             for n in range(1, 12):
                 t = f0 * n
                 if t > 500: break
-                band  = (freqs >= t - tol) & (freqs <= t + tol)
-                floor = np.percentile(psd, 20) + 1e-10
-                if band.any() and psd[band].max() > floor * 6:
+                band = (freqs >= t - tol) & (freqs <= t + tol)
+                if band.any() and psd[band].max() > floor * mult:
                     count += 1
                     score += psd[band].max() / floor
             return count, score
@@ -42,9 +52,9 @@ class FingerprintAgent(BaseAgent):
         ratio  = low_e / (high_e + 1e-10)
         smooth = np.std(np.diff(np.log10(psd + 1e-10)))
 
-        if h60 >= 4 and s60 >= s90:        noise_type = "generator_60hz"
-        elif h90 >= 4:                      noise_type = "generator_90hz"
-        elif h45 >= 3:                      noise_type = "generator_45hz"
+        if h60 >= 6 and s60 >= s90:        noise_type = "generator_60hz"
+        elif h90 >= 5:                      noise_type = "generator_90hz"
+        elif h45 >= 4:                      noise_type = "generator_45hz"
         elif ratio > 2.5 and smooth < 0.4: noise_type = "airplane"
         else:                               noise_type = "car"
 

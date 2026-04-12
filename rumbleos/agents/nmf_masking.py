@@ -8,7 +8,9 @@ N_FFT              = 2048
 HOP_LENGTH         = 512
 N_COMPONENTS       = 10
 PROP_DECREASE      = 0.75       # validated: removes 75% of noise energy
-ELEPHANT_THRESHOLD = 0.35       # components scoring above this = elephant
+TOP_K_ELEPHANT     = 3          # top-K NMF components classified as elephant
+                                # (replaces ELEPHANT_THRESHOLD — score distribution
+                                #  clusters mid-range, threshold selects all components)
 
 class NMFMaskingAgent(BaseAgent):
     """
@@ -90,7 +92,10 @@ class NMFMaskingAgent(BaseAgent):
         # Score each component
         scores      = np.array([NMFMaskingAgent.harmonic_pattern_score(W[:, k], freqs)
                                  for k in range(N_COMPONENTS)])
-        is_elephant = scores > ELEPHANT_THRESHOLD
+        # Top-K selection: pick K highest-scoring components as elephant
+        top_k_idx   = np.argsort(scores)[-TOP_K_ELEPHANT:]
+        is_elephant = np.zeros(N_COMPONENTS, dtype=bool)
+        is_elephant[top_k_idx] = True
 
         # Build elephant and noise signal estimates
         if is_elephant.any():
@@ -111,7 +116,10 @@ class NMFMaskingAgent(BaseAgent):
         if noise_type.startswith("generator"):
             f0_gen = (60.0 if "60" in noise_type else
                       90.0 if "90" in noise_type else 45.0)
-            b, a      = iircomb(w0=f0_gen, Q=35, ftype='notch', fs=sr)
+            # iircomb requires fs % w0 == 0; snap to nearest divisor of sr
+            n_harm    = max(1, round(sr / f0_gen))
+            w0_eff    = sr / n_harm
+            b, a      = iircomb(w0=w0_eff, Q=35, ftype='notch', fs=sr)
             notched   = lfilter(b, a, audio)
             D_notch   = librosa.stft(notched, n_fft=N_FFT, hop_length=HOP_LENGTH)
             mag_notch = np.abs(D_notch)

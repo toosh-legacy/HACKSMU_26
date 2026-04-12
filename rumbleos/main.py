@@ -26,7 +26,7 @@ from agents.quality_scorer import QualityScorerAgent
 from agents.sensecap       import SenseCapAgent
 from agents.clustering     import ClusteringAgent
 
-SEQUENTIAL_MODE = False   # set True to debug without multiprocessing
+SEQUENTIAL_MODE = True    # set True to debug without multiprocessing
 N_WORKERS       = 4       # match your CPU core count
 
 
@@ -104,6 +104,7 @@ def run_sequential(csv_path, audio_dir, output_dir):
             "audio_path": str(Path(audio_dir) / row['filename']),
             "start_time": float(row['start_time']),
             "end_time":   float(row['end_time']),
+            "noise_type": row['noise_type'] if 'noise_type' in row else None,
         }
         try:
             msg = pre.process(job)
@@ -172,6 +173,7 @@ def launch_parallel(csv_path, audio_dir, output_dir,
             "audio_path": str(Path(audio_dir) / row['filename']),
             "start_time": float(row['start_time']),
             "end_time":   float(row['end_time']),
+            "noise_type": row['noise_type'] if 'noise_type' in row else None,
         })
     print(f"[Main] {total} jobs dispatched")
 
