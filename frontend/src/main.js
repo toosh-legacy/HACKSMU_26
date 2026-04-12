@@ -2,6 +2,32 @@ import { mountNetworkGraph } from './mountNetworkGraph.jsx';
 import { mountAuroraWaves } from './mountAuroraWaves.jsx';
 import { mountNavBar } from './mountNavBar.jsx';
 
+const SESSION_KEY = 'tribal_session';
+
+function applySessionFromAuth() {
+  try {
+    const raw = sessionStorage.getItem(SESSION_KEY);
+    if (!raw) return;
+    const { email, name } = JSON.parse(raw);
+    const landing = document.getElementById('landing');
+    const app = document.getElementById('app-content');
+    if (landing && app) {
+      landing.style.display = 'none';
+      app.classList.add('visible');
+    }
+    const avatar = document.querySelector('.avatar-btn');
+    if (avatar) {
+      const src = (name && String(name).trim()) || email || '';
+      avatar.textContent = src ? src.charAt(0).toUpperCase() : 'U';
+      avatar.title = email || 'Profile';
+    }
+  } catch {
+    /* ignore */
+  }
+}
+
+applySessionFromAuth();
+
 // ── Data ─────────────────────────────────────────────────────────────
 let allCalls = [];
 let clusterSummaries = {};
@@ -96,19 +122,6 @@ function renderDashboard() {
     ? (valid.reduce((a, c) => a + parseFloat(c.snr_improvement_db || 0), 0) / valid.length).toFixed(1)
     : '—';
   const multi = allCalls.filter(c => c.multi_elephant === 'True').length;
-
-  // Streamlit deep-analysis link in section header
-  const headerDesc = document.querySelector('#section-dashboard .section-desc');
-  if (headerDesc && !headerDesc.querySelector('.streamlit-link')) {
-    const link = document.createElement('a');
-    link.className = 'streamlit-link';
-    link.href = 'http://localhost:8501';
-    link.target = '_blank';
-    link.rel = 'noopener noreferrer';
-    link.textContent = 'Deep Analysis →';
-    link.style.cssText = 'margin-left:12px;font-size:0.8rem;color:var(--sienna);text-decoration:none;opacity:0.85;';
-    headerDesc.appendChild(link);
-  }
 
   document.getElementById('stats-grid').innerHTML = `
     <div class="stat-card">
