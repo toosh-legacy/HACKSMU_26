@@ -34,7 +34,7 @@ from agents.clustering     import ClusteringAgent
 
 configure_runtime()
 
-SEQUENTIAL_MODE = True    # set True to debug without multiprocessing
+SEQUENTIAL_MODE = False    # set True to debug without multiprocessing
 FULL_FILE_MODE  = True    # process entire WAV files (not just annotated windows)
 N_WORKERS       = 4       # match your CPU core count
 
