@@ -15,4 +15,3 @@ env/
 rumbleos/results/
 rumbleos/data/recordings/
 node_modules/
-.claude/settings.local.json
