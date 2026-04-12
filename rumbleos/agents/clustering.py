@@ -19,6 +19,24 @@ class ClusteringAgent(mp.Process):
         self.in_queue   = in_queue
         self.output_dir = Path(output_dir)
         self.api_key    = claude_api_key
+        self.context_fields = [
+            "elephant_id",
+            "age_class",
+            "age",
+            "sex",
+            "location",
+            "location_id",
+            "camera_id",
+            "recorder_id",
+            "recording_device",
+            "relationship",
+            "relationship_group",
+            "family_group",
+            "clan",
+            "breeding_context",
+            "breeding_target",
+            "call_type",
+        ]
 
     @staticmethod
     def extract_features(r: dict) -> list:
@@ -33,6 +51,117 @@ class ClusteringAgent(mp.Process):
             1.0 if r.get('multi_elephant') else 0.0,
             r.get('f0_b', 0),
         ]
+
+    def _context_columns(self, df):
+        return [col for col in self.context_fields if col in df.columns]
+
+    @staticmethod
+    def _context_payload(row, context_cols):
+        payload = {}
+        for col in context_cols:
+            value = row.get(col)
+            if value is None:
+                continue
+            if isinstance(value, float) and np.isnan(value):
+                continue
+            payload[col] = value.item() if isinstance(value, np.generic) else value
+        return payload
+
+    @staticmethod
+    def _metadata_affinity(context_a: dict, context_b: dict) -> float:
+        weighted_fields = {
+            "elephant_id": 4.0,
+            "family_group": 3.0,
+            "relationship_group": 3.0,
+            "clan": 3.0,
+            "sex": 2.0,
+            "age_class": 2.0,
+            "location": 2.0,
+            "location_id": 2.0,
+            "breeding_context": 2.0,
+            "breeding_target": 2.0,
+            "call_type": 1.0,
+            "camera_id": 1.0,
+            "recorder_id": 1.0,
+            "recording_device": 1.0,
+        }
+        overlap = 0.0
+        max_score = 0.0
+        for field, weight in weighted_fields.items():
+            a = context_a.get(field)
+            b = context_b.get(field)
+            if a is None or b is None:
+                continue
+            max_score += weight
+            if str(a) == str(b):
+                overlap += weight
+        return overlap / max_score if max_score else 0.0
+
+    def _build_knowledge_base(self, valid_df, call_ids, labels, coords_2d, acoustic_sim, context_cols):
+        records = []
+        for idx, row in valid_df.iterrows():
+            context = self._context_payload(row, context_cols)
+            records.append({
+                "call_id": row["call_id"],
+                "recording_id": row.get("recording_id"),
+                "cluster": int(labels[idx]),
+                "umap_x": round(float(coords_2d[idx, 0]), 3),
+                "umap_y": round(float(coords_2d[idx, 1]), 3),
+                "comparison_image": row.get("comparison_image"),
+                "f0_hz": row.get("f0_hz"),
+                "snr_improvement_db": row.get("snr_improvement_db"),
+                "multi_elephant": bool(row.get("multi_elephant", False)),
+                "context": context,
+            })
+
+        links = []
+        for i in range(len(call_ids)):
+            context_a = records[i]["context"]
+            for j in range(i + 1, len(call_ids)):
+                context_b = records[j]["context"]
+                meta_sim = self._metadata_affinity(context_a, context_b)
+                combined = 0.7 * float(acoustic_sim[i, j]) + 0.3 * meta_sim
+                if combined < 0.72 and meta_sim < 0.8:
+                    continue
+                reasons = []
+                if acoustic_sim[i, j] > 0.80:
+                    reasons.append("acoustic_similarity")
+                for field in context_cols:
+                    if context_a.get(field) is not None and context_a.get(field) == context_b.get(field):
+                        reasons.append(f"shared_{field}")
+                links.append({
+                    "source": call_ids[i],
+                    "target": call_ids[j],
+                    "acoustic_similarity": round(float(acoustic_sim[i, j]), 3),
+                    "metadata_similarity": round(float(meta_sim), 3),
+                    "combined_score": round(float(combined), 3),
+                    "reasons": reasons,
+                })
+
+        cluster_profiles = {}
+        for cluster_id in sorted(set(int(x) for x in labels)):
+            members = [record for record in records if record["cluster"] == cluster_id]
+            context_counts = {}
+            for field in context_cols:
+                values = [str(m["context"][field]) for m in members if field in m["context"]]
+                if values:
+                    uniques, counts = np.unique(values, return_counts=True)
+                    context_counts[field] = dict(zip(uniques.tolist(), counts.tolist()))
+            cluster_profiles[cluster_id] = {
+                "count": len(members),
+                "members": [m["call_id"] for m in members],
+                "context_counts": context_counts,
+            }
+
+        knowledge_base = {
+            "schema_version": 1,
+            "description": "Context-aware elephant call knowledge base",
+            "context_fields_used": context_cols,
+            "calls": records,
+            "association_links": links,
+            "clusters": cluster_profiles,
+        }
+        (self.output_dir / "knowledge_base.json").write_text(json.dumps(knowledge_base, indent=2))
 
     def run(self):
         import pandas as pd
@@ -50,7 +179,26 @@ class ClusteringAgent(mp.Process):
 
         feat_matrix = np.array([self.extract_features(r) for r in valid])
         call_ids    = [r['call_id'] for r in valid]
-        X = StandardScaler().fit_transform(feat_matrix)
+        valid_df    = pd.DataFrame([tabular_result(r) for r in valid]).reset_index(drop=True)
+        context_cols = self._context_columns(valid_df)
+
+        acoustic_df = pd.DataFrame(feat_matrix, columns=[
+            "f0_hz",
+            "duration_s",
+            "harmonics_present",
+            "harmonic_completeness",
+            "snr_after_db",
+            "snr_improvement_db",
+            "multi_elephant_flag",
+            "f0_b",
+        ])
+        acoustic_X = StandardScaler().fit_transform(acoustic_df)
+        X = acoustic_X
+        if context_cols:
+            context_df = valid_df[context_cols].fillna("unknown").astype(str)
+            context_encoded = pd.get_dummies(context_df, prefix=context_cols)
+            context_X = context_encoded.to_numpy(dtype=float)
+            X = np.hstack([acoustic_X, context_X])
 
         # UMAP (falls back to PCA)
         try:
@@ -70,9 +218,11 @@ class ClusteringAgent(mp.Process):
             r['cluster'] = int(labels[i])
             r['umap_x']  = round(float(coords_2d[i, 0]), 3)
             r['umap_y']  = round(float(coords_2d[i, 1]), 3)
+            if context_cols:
+                r['context'] = self._context_payload(valid_df.iloc[i], context_cols)
 
         # Tribe graph (cosine similarity > 0.80)
-        sim   = cosine_similarity(X)
+        sim   = cosine_similarity(acoustic_X)
         edges = [
             {"source": call_ids[i], "target": call_ids[j],
              "weight": round(float(sim[i, j]), 3)}
@@ -101,6 +251,9 @@ class ClusteringAgent(mp.Process):
         # Save updated results with cluster info
         pd.DataFrame([tabular_result(r) for r in all_results]).to_csv(
             self.output_dir / "batch_results_clustered.csv", index=False)
+        valid_df_out = pd.DataFrame([tabular_result(r) for r in valid])
+        valid_df_out.to_csv(self.output_dir / "context_clusters.csv", index=False)
+        self._build_knowledge_base(valid_df_out, call_ids, labels, coords_2d, sim, context_cols)
 
         print(f"[Clustering] {k} clusters | {len(edges)} Tribe edges")
         for c, s in summaries.items():

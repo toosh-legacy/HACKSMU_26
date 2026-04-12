@@ -32,6 +32,30 @@ configure_runtime()
 
 SEQUENTIAL_MODE = True    # set True to debug without multiprocessing
 N_WORKERS       = 4       # match your CPU core count
+BASE_JOB_COLUMNS = {"filename", "start_time", "end_time", "noise_type"}
+
+
+def build_job(row, idx, audio_dir):
+    """Build one pipeline job and preserve any extra CSV context columns."""
+    context = {}
+    for key, value in row.items():
+        if key in BASE_JOB_COLUMNS:
+            continue
+        if pd.isna(value):
+            continue
+        context[key] = value.item() if isinstance(value, np.generic) else value
+
+    filename = row["filename"]
+    return {
+        "call_id":         f"{Path(filename).stem}_c{idx:03d}",
+        "recording_id":    Path(filename).stem,
+        "audio_path":      str(Path(audio_dir) / filename),
+        "start_time":      float(row["start_time"]),
+        "end_time":        float(row["end_time"]),
+        "noise_type":      row["noise_type"] if "noise_type" in row else None,
+        "comparison_image": f"{Path(filename).stem}_c{idx:03d}_comparison.png",
+        **context,
+    }
 
 
 def save_result(result: dict, output_dir: str):
@@ -118,14 +142,8 @@ def run_sequential(csv_path, audio_dir, output_dir):
     results = []
 
     for i, row in df.iterrows():
-        call_id = f"{Path(row['filename']).stem}_c{i:03d}"
-        job = {
-            "call_id":    call_id,
-            "audio_path": str(Path(audio_dir) / row['filename']),
-            "start_time": float(row['start_time']),
-            "end_time":   float(row['end_time']),
-            "noise_type": row['noise_type'] if 'noise_type' in row else None,
-        }
+        job = build_job(row, i, audio_dir)
+        call_id = job["call_id"]
         try:
             msg = pre.process(job)
             msg = fing.process(msg)
@@ -197,13 +215,7 @@ def launch_parallel(csv_path, audio_dir, output_dir,
     df    = pd.read_csv(csv_path)
     total = len(df)
     for i, row in df.iterrows():
-        q_pre.put({
-            "call_id":    f"{Path(row['filename']).stem}_c{i:03d}",
-            "audio_path": str(Path(audio_dir) / row['filename']),
-            "start_time": float(row['start_time']),
-            "end_time":   float(row['end_time']),
-            "noise_type": row['noise_type'] if 'noise_type' in row else None,
-        })
+        q_pre.put(build_job(row, i, audio_dir))
     print(f"[Main] {total} jobs dispatched")
 
     # Collect results
@@ -261,9 +273,9 @@ def launch_parallel(csv_path, audio_dir, output_dir,
 
 if __name__ == "__main__":
     # ── CONFIGURE THESE ──────────────────────────────────────────────
-    CSV_PATH       = r"C:\Users\tusha\Documents\hackathons\smu\HACKSMU_26\rumbleos\data\timestamps.csv"
-    AUDIO_DIR      = r"C:\Users\tusha\Documents\hackathons\smu\HACKSMU_26\recordings\2026)-20260411T194946Z-3-001\Audio Files (04-10-2026)"
-    OUTPUT_DIR     = r"C:\Users\tusha\Documents\hackathons\smu\HACKSMU_26\rumbleos\results"
+    CSV_PATH       = "data/timestamps.csv"
+    AUDIO_DIR      = "data/recordings"
+    OUTPUT_DIR     = "results"
     CLAUDE_API_KEY = None            # set your key for AI hypotheses
     SENSECAP_PORT  = "/dev/ttyUSB0"  # change if port differs
     # ─────────────────────────────────────────────────────────────────
