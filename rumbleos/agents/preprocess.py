@@ -43,8 +43,11 @@ class PreprocessAgent(BaseAgent):
 
         return {
             **msg,
-            "segment":   segment,
-            "noise_ref": noise_ref,
-            "sr":        sr,
-            "original":  segment.copy(),
+            "segment":          segment,
+            "noise_ref":        noise_ref,
+            "sr":               sr,
+            "original":         segment.copy(),
+            "full_audio":       y.copy(),        # full bandpass-filtered source file
+            "seg_start_sample": s,               # where segment sits in full_audio
+            "seg_end_sample":   e,
         }

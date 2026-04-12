@@ -46,23 +46,38 @@ def save_result(result: dict, output_dir: str):
     sr       = result['sr']
     cleaned  = result['cleaned']
     original = result.get('original', cleaned)
-    min_len  = min(len(original), len(cleaned))
+    # cleaned is guaranteed same length as segment (reconstruction pads/trims)
+
+    # Splice cleaned segment back into full source audio so output length == source length
+    full_audio = result.get('full_audio')
+    s          = result.get('seg_start_sample')
+    e          = result.get('seg_end_sample')
+    if full_audio is not None and s is not None and e is not None:
+        output_audio = full_audio.copy()
+        output_audio[s:e] = cleaned[:e - s]
+    else:
+        output_audio = cleaned  # fallback: segment only (pre-fix behaviour)
 
     # Save primary cleaned WAV
     wavfile.write(str(out / f"{call_id}_clean.wav"),
-                  sr, cleaned[:min_len].astype(np.float32))
+                  sr, output_audio.astype(np.float32))
 
     # Save second elephant if detected
     if result.get('multi_elephant') and result.get('cleaned_b') is not None:
+        if full_audio is not None and s is not None and e is not None:
+            output_b = full_audio.copy()
+            output_b[s:e] = result['cleaned_b'][:e - s]
+        else:
+            output_b = result['cleaned_b']
         wavfile.write(str(out / f"{call_id}_elephant_b.wav"),
-                      sr, result['cleaned_b'].astype(np.float32))
+                      sr, output_b.astype(np.float32))
 
     # Before/after spectrogram comparison
     try:
         fig, axes = plt.subplots(1, 2, figsize=(14, 5))
         for ax, audio, title in [
-            (axes[0], original[:min_len], f"BEFORE — {result.get('noise_type','')}"),
-            (axes[1], cleaned[:min_len],
+            (axes[0], original, f"BEFORE — {result.get('noise_type','')}"),
+            (axes[1], cleaned,
              f"AFTER — F0={result.get('f0_hz',0)}Hz "
              f"SNR+{result.get('snr_improvement_db',0):.1f}dB "
              f"[{result.get('harmonics_present',0)}/{result.get('harmonics_possible',0)} harmonics]"),
@@ -118,14 +133,14 @@ def run_sequential(csv_path, audio_dir, output_dir):
             msg = over.process(msg)
             msg = score.process(msg)
             results.append(msg)
-            if msg.get('valid') and 'cleaned' in msg:
+            if 'cleaned' in msg:
                 save_result(msg, output_dir)
-            print(f"✓ {call_id} | {msg.get('noise_type')} | "
+            print(f"OK {call_id} | {msg.get('noise_type')} | "
                   f"F0={msg.get('f0_hz')}Hz | "
                   f"SNR+{msg.get('snr_improvement_db')}dB | "
                   f"valid={msg.get('valid')}")
         except Exception as e:
-            print(f"✗ {call_id}: {e}")
+            print(f"FAIL {call_id}: {e}")
 
     pd.DataFrame([tabular_result(r) for r in results]).to_csv(
         out / "batch_results.csv", index=False)
@@ -200,7 +215,7 @@ def launch_parallel(csv_path, audio_dir, output_dir,
             print("[Main] timeout waiting for results — check for agent errors")
             break
         all_results.append(r)
-        if r.get('valid') and 'cleaned' in r:
+        if 'cleaned' in r:
             save_result(r, output_dir)
         done = len(all_results)
         if done % 25 == 0 or done == total:
@@ -245,9 +260,9 @@ def launch_parallel(csv_path, audio_dir, output_dir,
 
 if __name__ == "__main__":
     # ── CONFIGURE THESE ──────────────────────────────────────────────
-    CSV_PATH       = "data/timestamps.csv"
-    AUDIO_DIR      = "data/recordings/"
-    OUTPUT_DIR     = "results/"
+    CSV_PATH       = r"C:\Users\tusha\Documents\hackathons\smu\HACKSMU_26\rumbleos\data\timestamps.csv"
+    AUDIO_DIR      = r"C:\Users\tusha\Documents\hackathons\smu\HACKSMU_26\recordings\2026)-20260411T194946Z-3-001\Audio Files (04-10-2026)"
+    OUTPUT_DIR     = r"C:\Users\tusha\Documents\hackathons\smu\HACKSMU_26\rumbleos\results"
     CLAUDE_API_KEY = None            # set your key for AI hypotheses
     SENSECAP_PORT  = "/dev/ttyUSB0"  # change if port differs
     # ─────────────────────────────────────────────────────────────────

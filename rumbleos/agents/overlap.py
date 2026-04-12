@@ -90,8 +90,15 @@ class OverlapAgent(BaseAgent):
                 c_sig  = signal * np.exp(1j * np.angle(D_clean))
                 return librosa.istft(c_sig, hop_length=HOP_LENGTH, win_length=N_FFT)
 
-            cleaned_a = reconstruct_from_components(comp_a)
-            cleaned_b = reconstruct_from_components(~comp_a)
+            target_len = len(cleaned_audio)
+
+            def fit_length(arr, n):
+                if len(arr) < n:
+                    return np.pad(arr, (0, n - len(arr)))
+                return arr[:n]
+
+            cleaned_a = fit_length(reconstruct_from_components(comp_a), target_len)
+            cleaned_b = fit_length(reconstruct_from_components(~comp_a), target_len)
             msg = {**msg, "cleaned": cleaned_a, "cleaned_b": cleaned_b}
 
         return {**msg, "multi_elephant": multi, "f0_b": f0_b}

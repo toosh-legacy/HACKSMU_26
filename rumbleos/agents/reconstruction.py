@@ -69,4 +69,13 @@ class ReconstructionAgent(BaseAgent):
         cleaned_complex = cleaned_mag * np.exp(1j * phase)
         cleaned_audio   = librosa.istft(cleaned_complex,
                                         hop_length=HOP_LENGTH, win_length=N_FFT)
+
+        # Ensure output is exactly the same length as input segment
+        # ISTFT frame rounding can add/remove a few samples
+        target_len = len(msg['segment'])
+        if len(cleaned_audio) < target_len:
+            cleaned_audio = np.pad(cleaned_audio, (0, target_len - len(cleaned_audio)))
+        else:
+            cleaned_audio = cleaned_audio[:target_len]
+
         return {**msg, "cleaned": cleaned_audio}
