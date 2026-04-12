@@ -12,5 +12,6 @@ env/
 .vscode/
 .idea/
 rumbleos/results/
+rumbleos/data/recordings/
 </content>
 </invoke>
