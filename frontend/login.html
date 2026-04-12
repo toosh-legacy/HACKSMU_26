@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Log in — Tribal</title>
+  <meta name="description" content="Sign in to Tribal." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/src/style.css" />
+</head>
+<body class="auth-body" data-auth-page="login">
+  <div class="auth-shell">
+    <header class="auth-top">
+      <a href="/" class="auth-back"><span class="auth-back-icon" aria-hidden="true">←</span> Back</a>
+      <a href="/" class="auth-brand">Tribal</a>
+    </header>
+
+    <main class="auth-main">
+      <div class="auth-card">
+        <h1 class="auth-title">Log in</h1>
+        <p class="auth-lede">Welcome back. Continue to your pipeline dashboard.</p>
+
+        <form id="login-form" class="auth-form" novalidate>
+          <label class="auth-field">
+            <span class="auth-label">Email</span>
+            <input type="email" name="email" autocomplete="email" required placeholder="you@example.com" />
+          </label>
+          <label class="auth-field">
+            <span class="auth-label">Password</span>
+            <input type="password" name="password" autocomplete="current-password" required placeholder="••••••••" minlength="8" />
+          </label>
+          <button type="submit" class="auth-submit">Log in</button>
+        </form>
+
+        <p class="auth-footer">
+          No account yet?
+          <a href="/signup.html">Create one</a>
+        </p>
+      </div>
+    </main>
+  </div>
+  <script type="module" src="/src/auth-pages.js"></script>
+</body>
+</html>

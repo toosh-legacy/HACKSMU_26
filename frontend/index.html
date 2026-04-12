@@ -20,8 +20,8 @@
           Tribal
         </div>
         <div class="auth-buttons">
-          <button class="auth-link">Log in</button>
-          <button class="auth-btn">Sign up</button>
+          <a class="auth-link" href="/login.html">Log in</a>
+          <a class="auth-btn" href="/signup.html">Sign up</a>
         </div>
       </div>
       <!-- Aurora waves — full-page background -->
@@ -112,6 +112,14 @@
           <p class="section-desc">UMAP + K-means behavioural groupings — each cluster represents a distinct communication pattern.</p>
         </div>
         <div class="clusters-grid" id="clusters-grid"></div>
+
+        <div id="ai-hypotheses-panel" style="display:none;">
+          <div class="hypotheses-header">
+            <span class="hypotheses-badge">Gemini AI</span>
+            <h3 class="hypotheses-title">Behavioural Hypotheses</h3>
+          </div>
+          <div class="hypotheses-body" id="ai-hypotheses-text"></div>
+        </div>
       </section>
 
       <section id="section-network" class="section" style="padding: 0; background: var(--charcoal); position: relative; overflow: hidden;">

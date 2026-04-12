@@ -15,10 +15,14 @@ from pathlib import Path
 import pandas as pd
 import numpy as np
 import time
+import os
 import librosa
 from collections import Counter
 from scipy.signal import butter, sosfiltfilt
 from scipy.io import wavfile
+from dotenv import load_dotenv
+
+load_dotenv(Path(__file__).parent.parent / ".env")
 
 from agents.runtime        import configure_runtime
 from agents.serialization  import tabular_result
@@ -509,7 +513,7 @@ def run_sequential(csv_path, audio_dir, output_dir):
 
 
 def launch_parallel(csv_path, audio_dir, output_dir,
-                    claude_api_key=None, sensecap_port='/dev/ttyUSB0'):
+                    gemini_api_key=None, sensecap_port='/dev/ttyUSB0'):
     """Parallel mode — 9 agents, 4× speedup."""
     Path(output_dir).mkdir(parents=True, exist_ok=True)
     N = N_WORKERS
@@ -540,7 +544,7 @@ def launch_parallel(csv_path, audio_dir, output_dir,
     for i in range(2):
         agents.append(OverlapAgent(i, q_over, q_score, name="Over"))
     agents.append(SenseCapAgent(q_sense, port=sensecap_port))
-    agents.append(ClusteringAgent(q_clust, output_dir, claude_api_key))
+    agents.append(ClusteringAgent(q_clust, output_dir, gemini_api_key))
 
     for a in agents: a.start()
     print(f"[Main] {len(agents)} agents started")
@@ -611,11 +615,11 @@ def launch_parallel(csv_path, audio_dir, output_dir,
 
 if __name__ == "__main__":
     # ── CONFIGURE THESE ──────────────────────────────────────────────
-    CSV_PATH       = "data/timestamps.csv"
+    CSV_PATH       = os.environ.get("CSV_PATH",   "data/timestamps.csv")
     AUDIO_DIR      = "../recordings/2026)-20260411T194946Z-3-001/Audio Files (04-10-2026)"
-    OUTPUT_DIR     = "results"
-    CLAUDE_API_KEY = None            # set your key for AI hypotheses
-    SENSECAP_PORT  = "/dev/ttyUSB0"  # change if port differs
+    OUTPUT_DIR     = os.environ.get("OUTPUT_DIR", "results")
+    GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
+    SENSECAP_PORT  = os.environ.get("SENSECAP_PORT", "/dev/ttyUSB0")
     # ─────────────────────────────────────────────────────────────────
 
     if FULL_FILE_MODE:
@@ -628,7 +632,7 @@ if __name__ == "__main__":
         print("Running in PARALLEL mode (4× agents)")
         results = launch_parallel(
             CSV_PATH, AUDIO_DIR, OUTPUT_DIR,
-            claude_api_key=CLAUDE_API_KEY,
+            gemini_api_key=GEMINI_API_KEY,
             sensecap_port=SENSECAP_PORT,
         )
 

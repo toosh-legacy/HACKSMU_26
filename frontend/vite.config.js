@@ -5,6 +5,15 @@ import path from 'path';
 import { createReadStream, existsSync, statSync } from 'fs';
 
 export default defineConfig({
+  build: {
+    rollupOptions: {
+      input: {
+        main: path.resolve(__dirname, 'index.html'),
+        login: path.resolve(__dirname, 'login.html'),
+        signup: path.resolve(__dirname, 'signup.html'),
+      },
+    },
+  },
   server: {
     port: 5173,
     open: true,
