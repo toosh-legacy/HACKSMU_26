@@ -612,7 +612,7 @@ def launch_parallel(csv_path, audio_dir, output_dir,
 if __name__ == "__main__":
     # ── CONFIGURE THESE ──────────────────────────────────────────────
     CSV_PATH       = "data/timestamps.csv"
-    AUDIO_DIR      = "data/recordings"
+    AUDIO_DIR      = "../recordings/2026)-20260411T194946Z-3-001/Audio Files (04-10-2026)"
     OUTPUT_DIR     = "results"
     CLAUDE_API_KEY = None            # set your key for AI hypotheses
     SENSECAP_PORT  = "/dev/ttyUSB0"  # change if port differs
