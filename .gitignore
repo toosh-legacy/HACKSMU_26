@@ -14,5 +14,5 @@ env/
 .codex
 rumbleos/results/
 rumbleos/data/recordings/
-</content>
-</invoke>
+node_modules/
+.claude/settings.local.json

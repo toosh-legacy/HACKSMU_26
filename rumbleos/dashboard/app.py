@@ -7,12 +7,15 @@ st.set_page_config(page_title="RumbleOS", layout="wide")
 st.title("RumbleOS — Elephant Infrasound Research Platform")
 
 OUT = Path("results")
-csv_path = OUT / "batch_results.csv"
+clustered_csv_path = OUT / "batch_results_clustered.csv"
+csv_path = clustered_csv_path if clustered_csv_path.exists() else OUT / "batch_results.csv"
 if not csv_path.exists():
     st.info("No results yet. Run: python main.py"); st.stop()
 
 df    = pd.read_csv(csv_path)
 valid = df[df['valid'] == True] if 'valid' in df.columns else df.head(0)
+kb_path = OUT / "knowledge_base.json"
+knowledge_base = json.loads(kb_path.read_text()) if kb_path.exists() else None
 
 c1, c2, c3, c4, c5 = st.columns(5)
 c1.metric("Calls Processed",  len(df))
@@ -38,6 +41,21 @@ with col_left:
         st.metric("SNR Gain (dB)", row.get('snr_improvement_db', '—'))
         st.metric("Harmonics",     f"{row.get('harmonics_present','?')}/{row.get('harmonics_possible','?')}")
         st.metric("Valid",         str(row.get('valid', '—')))
+        context_cols = [c for c in [
+            'elephant_id', 'age_class', 'age', 'sex', 'location', 'location_id',
+            'camera_id', 'recorder_id', 'recording_device', 'relationship',
+            'relationship_group', 'family_group', 'clan',
+            'breeding_context', 'breeding_target', 'call_type'
+        ] if c in row.index and pd.notna(row.get(c))]
+        if context_cols:
+            st.caption("Context Tags")
+            st.dataframe(
+                pd.DataFrame(
+                    [{"field": col, "value": row.get(col)} for col in context_cols]
+                ),
+                use_container_width=True,
+                hide_index=True,
+            )
 
 with col_right:
     st.subheader("Before / After Spectrogram")
@@ -71,10 +89,38 @@ if tribe_file.exists():
     st.metric("Similar Call Pairs", len(edges))
     st.dataframe(edges.head(20), use_container_width=True)
 
+if knowledge_base:
+    st.divider()
+    st.subheader("Context Knowledge Base")
+    st.caption("Links acoustic signatures with metadata like elephant ID, sex, age, location, relationship, and breeding context.")
+
+    kb_cols = st.columns(3)
+    kb_cols[0].metric("KB Calls", len(knowledge_base.get("calls", [])))
+    kb_cols[1].metric("Association Links", len(knowledge_base.get("association_links", [])))
+    kb_cols[2].metric("Context Fields", len(knowledge_base.get("context_fields_used", [])))
+
+    if selected:
+        selected_call = next((c for c in knowledge_base.get("calls", []) if c["call_id"] == selected), None)
+        if selected_call:
+            st.caption("Selected Call Context Record")
+            st.json(selected_call)
+
+    links = knowledge_base.get("association_links", [])
+    if links:
+        st.caption("Top Association Links")
+        st.dataframe(
+            pd.DataFrame(links).sort_values("combined_score", ascending=False).head(20),
+            use_container_width=True,
+        )
+
 st.divider()
 st.subheader("All Results")
 if len(df):
-    show_cols = [c for c in ['call_id', 'noise_type', 'f0_hz', 'snr_improvement_db',
-                              'harmonic_completeness', 'harmonics_present', 'valid',
-                              'multi_elephant', 'cluster'] if c in df.columns]
+    show_cols = [c for c in ['call_id', 'recording_id', 'noise_type', 'call_type',
+                              'elephant_id', 'sex', 'age_class', 'location',
+                              'relationship_group', 'family_group', 'clan',
+                              'breeding_context', 'breeding_target', 'f0_hz',
+                              'snr_improvement_db', 'harmonic_completeness',
+                              'harmonics_present', 'valid', 'multi_elephant',
+                              'cluster'] if c in df.columns]
     st.dataframe(df[show_cols], use_container_width=True)

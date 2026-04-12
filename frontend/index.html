@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Tribal</title>
+  <meta name="description" content="Tribal removes mechanical noise from elephant infrasound recordings and discovers communication patterns across herds." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/src/style.css" />
+</head>
+<body>
+  <div id="app">
+
+    <!-- ── Landing ─────────────────────────────────────── -->
+    <section id="landing" class="landing-page">
+      <div class="landing-nav">
+        <div class="logo" onclick="window.location.reload()" style="cursor: pointer; z-index: 10; font-family: var(--font-display); font-size: 1.6rem; letter-spacing: 0.04em;">
+          Tribal
+        </div>
+        <div class="auth-buttons">
+          <button class="auth-link">Log in</button>
+          <button class="auth-btn">Sign up</button>
+        </div>
+      </div>
+      <!-- Aurora waves — full-page background -->
+      <div id="aurora-banner" style="position:absolute;inset:0;width:100%;height:100%;z-index:0;"></div>
+
+      <div class="hero">
+        <h1>HEAR WHAT THE<br/><span>EARTH HIDES.</span></h1>
+        <p>A multi-agent pipeline that strips mechanical noise from field recordings and uncovers elephant communication patterns buried in infrasound.</p>
+      </div>
+
+      <!-- Gradient CTA section -->
+      <div class="hero-gradient-section">
+        <button class="process-btn" id="process-btn">
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+          Process Recordings
+        </button>
+
+        <!-- Footer -->
+        <footer class="landing-footer">
+          <p>Built at <strong>HackSMU</strong></p>
+          <p class="footer-copy">© 2026 Tribal. All rights reserved.</p>
+        </footer>
+      </div>
+    </section>
+
+    <!-- ── App Shell ───────────────────────────────────── -->
+    <div class="app-content" id="app-content">
+      <header id="main-header">
+        <div class="header-left">
+          <a href="#" class="logo" id="app-home">
+            <h1>Tribal</h1>
+          </a>
+        </div>
+        <div class="header-right">
+          <button class="avatar-btn" title="Profile">J</button>
+        </div>
+      </header>
+
+      <!-- Bottom floating nav -->
+      <div id="app-nav-root"></div>
+
+      <section id="section-dashboard" class="section active">
+        <div class="section-header">
+          <h2 class="section-title">Dashboard</h2>
+          <p class="section-desc">Pipeline run overview — noise removed, calls analysed, clusters found.</p>
+        </div>
+        <div class="stats-grid" id="stats-grid"></div>
+        <div class="dashboard-grid">
+          <div class="card" id="noise-distribution-card">
+            <h2 class="card-title">Noise Type Distribution</h2>
+            <div class="chart-container" id="noise-chart"></div>
+          </div>
+          <div class="card" id="cluster-overview-card">
+            <h2 class="card-title">Cluster Overview</h2>
+            <div class="cluster-pills" id="cluster-pills"></div>
+          </div>
+        </div>
+      </section>
+
+      <section id="section-explorer" class="section">
+        <div class="section-header">
+          <h2 class="section-title">Explorer</h2>
+          <p class="section-desc">Browse every processed call — filter by noise type or cluster, inspect spectrograms and audio.</p>
+        </div>
+        <div class="explorer-layout">
+          <aside class="call-list-panel" id="call-list-panel">
+            <div class="search-box">
+              <input type="text" id="call-search" placeholder="Search calls…" />
+            </div>
+            <div class="filter-row">
+              <select id="noise-filter"><option value="">All Noise</option></select>
+              <select id="cluster-filter"><option value="">All Clusters</option></select>
+            </div>
+            <div class="call-list" id="call-list"></div>
+          </aside>
+          <main class="call-detail" id="call-detail">
+            <div class="empty-state">
+              <span class="empty-icon">📡</span>
+              <p>Select a call to view details</p>
+            </div>
+          </main>
+        </div>
+      </section>
+
+      <section id="section-clusters" class="section">
+        <div class="section-header">
+          <h2 class="section-title">Clusters</h2>
+          <p class="section-desc">UMAP + K-means behavioural groupings — each cluster represents a distinct communication pattern.</p>
+        </div>
+        <div class="clusters-grid" id="clusters-grid"></div>
+      </section>
+
+      <section id="section-network" class="section" style="padding: 0; background: var(--charcoal); position: relative; overflow: hidden;">
+        <!-- React mounts here. position:absolute fills the flex-sized section without needing height:100% inheritance. -->
+        <div id="react-network-root" style="position: absolute; top: 0; left: 0; right: 0; bottom: 0;"></div>
+      </section>
+    </div>
+  </div>
+
+  <script type="module" src="/src/main.js"></script>
+</body>
+</html>
