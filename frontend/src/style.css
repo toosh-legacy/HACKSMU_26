@@ -511,6 +511,25 @@ tr:hover { background: var(--bg); }
 }
 .cluster-call-tag:hover { border-color: var(--sienna); color: var(--sienna); }
 
+.cluster-network-btn {
+  margin-left: auto;
+  font-size: 0.62rem;
+  font-family: var(--font-mono);
+  font-weight: 600;
+  color: var(--sienna);
+  background: rgba(226,112,58,0.08);
+  border: 1px solid rgba(226,112,58,0.2);
+  border-radius: 4px;
+  padding: 0.15rem 0.5rem;
+  cursor: pointer;
+  transition: all var(--transition);
+  letter-spacing: 0.04em;
+}
+.cluster-network-btn:hover {
+  background: rgba(226,112,58,0.18);
+  border-color: var(--sienna);
+}
+
 /* ── Network ─────────────────────────────────────────────── */
 .network-controls { display: flex; align-items: center; gap: 0.8rem; margin-bottom: 0.75rem; }
 .network-controls label { font-size: 0.72rem; color: var(--text-secondary); display: flex; align-items: center; gap: 0.4rem; }

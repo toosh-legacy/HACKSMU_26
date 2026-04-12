@@ -74,7 +74,7 @@ const getLayoutDuration = (nodeCount: number): number => {
   if (nodeCount > 5000) return 35000;
   if (nodeCount > 2000) return 30000;
   if (nodeCount > 1000) return 30000;
-  if (nodeCount > 500) return 25000;
+  if (nodeCount > 500) return 28000;
   return 20000;
 };
 

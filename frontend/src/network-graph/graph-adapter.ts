@@ -24,16 +24,17 @@ const getScaledNodeSize = (baseSize: number, nodeCount: number): number => {
 const getNodeMass = (nodeType: NodeLabel, nodeCount: number): number => {
   const baseMassMultiplier = nodeCount > 5000 ? 2 : nodeCount > 1000 ? 1.5 : 1;
   switch (nodeType) {
-    case 'Project':   return 50 * baseMassMultiplier;
-    case 'Package':   return 30 * baseMassMultiplier;
-    case 'Module':    return 20 * baseMassMultiplier;
-    case 'Folder':    return 15 * baseMassMultiplier;
-    case 'File':      return 3 * baseMassMultiplier;
+    case 'Project':    return 50 * baseMassMultiplier;
+    case 'Package':    return 30 * baseMassMultiplier;
+    case 'Module':     return 20 * baseMassMultiplier;
+    case 'Folder':     return 15 * baseMassMultiplier;
+    case 'File':       return 3 * baseMassMultiplier;
+    case 'ClusterHub': return 100 * baseMassMultiplier;
     case 'Class':
-    case 'Interface': return 5 * baseMassMultiplier;
+    case 'Interface':  return 5 * baseMassMultiplier;
     case 'Function':
-    case 'Method':    return 2 * baseMassMultiplier;
-    default:          return 1;
+    case 'Method':     return 2 * baseMassMultiplier;
+    default:           return 1;
   }
 };
 
@@ -68,7 +69,7 @@ export const knowledgeGraphToGraphology = (
   const structuralSpread = Math.sqrt(nodeCount) * 40;
   const childJitter = Math.sqrt(nodeCount) * 3;
 
-  // Cluster centers for community-based positioning
+  // Cluster centers via golden-angle distribution
   const clusterCenters = new Map<number, { x: number; y: number }>();
   if (communityMemberships && communityMemberships.size > 0) {
     const communities = new Set(communityMemberships.values());
@@ -86,6 +87,7 @@ export const knowledgeGraphToGraphology = (
       idx++;
     });
   }
+
   const clusterJitter = Math.sqrt(nodeCount) * 1.5;
 
   const nodePositions = new Map<string, { x: number; y: number }>();
@@ -126,10 +128,16 @@ export const knowledgeGraphToGraphology = (
 
     let x: number, y: number;
     const communityIndex = communityMemberships?.get(nodeId);
-    const symbolTypes = new Set(['Function', 'Class', 'Method', 'Interface', 'ElephantCall']);
+    const symbolTypes = new Set(['Function', 'Class', 'Method', 'Interface', 'ElephantCall', 'ClusterHub']);
     const clusterCenter = communityIndex !== undefined ? clusterCenters.get(communityIndex) : null;
 
-    if (clusterCenter && symbolTypes.has(node.label)) {
+    if (node.label === 'ClusterHub') {
+      // Start at the computed cluster center — FA2 will settle it naturally
+      const hubCommunity = communityMemberships?.get(nodeId);
+      const hubCenter = hubCommunity !== undefined ? clusterCenters.get(hubCommunity) : null;
+      x = hubCenter ? hubCenter.x : (Math.random() - 0.5) * structuralSpread * 0.5;
+      y = hubCenter ? hubCenter.y : (Math.random() - 0.5) * structuralSpread * 0.5;
+    } else if (clusterCenter && symbolTypes.has(node.label)) {
       x = clusterCenter.x + (Math.random() - 0.5) * clusterJitter;
       y = clusterCenter.y + (Math.random() - 0.5) * clusterJitter;
     } else {
@@ -202,13 +210,16 @@ export const knowledgeGraphToGraphology = (
     CALLS:      { color: '#7c3aed', sizeMultiplier: 0.8 },
     EXTENDS:    { color: '#c2410c', sizeMultiplier: 1.0 },
     IMPLEMENTS: { color: '#be185d', sizeMultiplier: 0.9 },
-    SIMILAR_TO: { color: 'rgba(226,112,58,0.35)', sizeMultiplier: 0.7 },
+    SIMILAR_TO:         { color: 'rgba(226,112,58,0.35)', sizeMultiplier: 0.8 },
+    BELONGS_TO_CLUSTER: { color: 'rgba(245,162,93,0.55)', sizeMultiplier: 0.5 },
+    ASSOCIATED_WITH:    { color: 'rgba(99,220,180,0.35)', sizeMultiplier: 0.5 },
   };
 
   knowledgeGraph.relationships.forEach((rel) => {
     if (graph.hasNode(rel.sourceId) && graph.hasNode(rel.targetId)) {
       if (!graph.hasEdge(rel.sourceId, rel.targetId)) {
         const style = EDGE_STYLES[rel.type] || { color: '#4a4a5a', sizeMultiplier: 0.5 };
+        const weight = (rel.confidence ?? 1.0);
         const curvature = 0.12 + Math.random() * 0.08;
         graph.addEdge(rel.sourceId, rel.targetId, {
           size: edgeBaseSize * style.sizeMultiplier,
@@ -216,6 +227,7 @@ export const knowledgeGraphToGraphology = (
           relationType: rel.type,
           type: 'curved',
           curvature,
+          weight,
         });
       }
     }

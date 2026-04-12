@@ -7,6 +7,7 @@ let allCalls = [];
 let clusterSummaries = {};
 let tribeEdges = [];
 let aiHypotheses = '';
+let knowledgeBase = null;
 
 async function loadCSV(url) {
   const res = await fetch(url);
@@ -31,16 +32,18 @@ async function loadCSV(url) {
 
 async function loadData() {
   try {
-    const [calls, clusters, edgesRaw, hypothesesText] = await Promise.all([
+    const [calls, clusters, edgesRaw, hypothesesText, kb] = await Promise.all([
       loadCSV('/results/batch_results_clustered.csv').catch(() => loadCSV('/results/batch_results.csv')),
       fetch('/results/cluster_summaries.json').then(r => r.json()).catch(() => ({})),
       loadCSV('/results/tribe_edges.csv').catch(() => []),
       fetch('/results/ai_hypotheses.txt').then(r => r.ok ? r.text() : '').catch(() => ''),
+      fetch('/results/knowledge_base.json').then(r => r.ok ? r.json() : null).catch(() => null),
     ]);
     allCalls = calls;
     clusterSummaries = clusters;
     tribeEdges = edgesRaw;
     aiHypotheses = hypothesesText;
+    knowledgeBase = kb;
     return true;
   } catch (e) {
     console.error('Data load error:', e);
@@ -94,6 +97,19 @@ function renderDashboard() {
     : '—';
   const multi = allCalls.filter(c => c.multi_elephant === 'True').length;
 
+  // Streamlit deep-analysis link in section header
+  const headerDesc = document.querySelector('#section-dashboard .section-desc');
+  if (headerDesc && !headerDesc.querySelector('.streamlit-link')) {
+    const link = document.createElement('a');
+    link.className = 'streamlit-link';
+    link.href = 'http://localhost:8501';
+    link.target = '_blank';
+    link.rel = 'noopener noreferrer';
+    link.textContent = 'Deep Analysis →';
+    link.style.cssText = 'margin-left:12px;font-size:0.8rem;color:var(--sienna);text-decoration:none;opacity:0.85;';
+    headerDesc.appendChild(link);
+  }
+
   document.getElementById('stats-grid').innerHTML = `
     <div class="stat-card">
       <div class="stat-label">Calls Processed</div>
@@ -137,10 +153,10 @@ function renderDashboard() {
       </div>
     `).join('');
 
-  // Cluster pills
+  // Cluster pills — click navigates to clusters section
   document.getElementById('cluster-pills').innerHTML = Object.entries(clusterSummaries)
     .map(([id, s]) => `
-      <div class="cluster-pill" onclick="document.querySelector('[data-section=clusters]').click()">
+      <div class="cluster-pill" onclick="navigateToCluster(${id})">
         <span class="cluster-pill-name">Cluster ${id}</span>
         <span class="cluster-pill-meta">${s.count} calls · ${s.mean_f0_hz} Hz</span>
       </div>
@@ -186,7 +202,7 @@ function renderCallList() {
 
 window.selectCall = function(callId) {
   const explorerNav = document.querySelector('[data-section="explorer"]');
-  if (!document.getElementById('section-explorer').classList.contains('active')) explorerNav.click();
+  if (!document.getElementById('section-explorer')?.classList.contains('active')) explorerNav?.click();
 
   document.querySelectorAll('.call-item').forEach(el => el.classList.remove('active'));
   const item = document.querySelector(`[data-call-id="${callId}"]`);
@@ -259,6 +275,9 @@ function renderClusters() {
       <div class="cluster-header">
         <span class="cluster-id">C${id}</span>
         <span class="cluster-count">${s.count} calls</span>
+        <button class="cluster-network-btn" onclick="viewClusterInNetwork(${id})" title="Focus this cluster in the knowledge graph">
+          Network →
+        </button>
       </div>
       <div class="cluster-stats">
         <div class="cluster-stat"><div class="cluster-stat-label">Mean F0</div><div class="cluster-stat-value">${s.mean_f0_hz} Hz</div></div>
@@ -291,8 +310,33 @@ function renderNetwork() {
   networkMounted = true;
   // Threshold 0.90: all tribe_edges weights are ≥0.80 so 0.70 passes everything (1415 edges).
   // 0.90 drops to ~489 edges — still rich but ForceAtlas2 can handle it smoothly.
-  mountNetworkGraph('react-network-root', tribeEdges, allCalls, clusterSummaries, 0.92);
+  mountNetworkGraph('react-network-root', tribeEdges, allCalls, clusterSummaries, 0.92, knowledgeBase);
 }
+
+// ── Cross-section navigation helpers ─────────────────────────────────
+// Navigate to clusters section and scroll to a specific cluster card
+window.navigateToCluster = function(clusterId) {
+  document.querySelector('[data-section="clusters"]')?.click();
+  navigateTo('#clusters');
+  setTimeout(() => {
+    const cards = document.querySelectorAll('.cluster-card');
+    // cluster cards render in order 0,1,2... so index = clusterId
+    if (cards[clusterId]) cards[clusterId].scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }, 100);
+};
+
+// Navigate to network section and focus on a cluster hub node
+window.viewClusterInNetwork = function(clusterId) {
+  // Ensure network is mounted
+  if (!networkMounted) renderNetwork();
+  document.querySelector('[data-section="network"]')?.click();
+  navigateTo('#network');
+  setTimeout(() => {
+    if (typeof window.focusNetworkCluster === 'function') {
+      window.focusNetworkCluster(clusterId);
+    }
+  }, 400);
+};
 
 // ── Init ─────────────────────────────────────────────────────────────
 async function init() {

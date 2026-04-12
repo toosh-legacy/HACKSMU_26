@@ -42,7 +42,8 @@ export type NodeLabel =
   | 'Section'
   | 'Route'
   | 'Tool'
-  | 'ElephantCall';
+  | 'ElephantCall'
+  | 'ClusterHub';
 
 export type NodeProperties = {
   name: string;
@@ -60,6 +61,8 @@ export type RelationshipType =
   | 'EXTENDS'
   | 'IMPLEMENTS'
   | 'MEMBER_OF'
+  | 'BELONGS_TO_CLUSTER'
+  | 'ASSOCIATED_WITH'
   | string; // allow custom relationship types
 
 export interface GraphNode {
@@ -74,7 +77,7 @@ export interface GraphRelationship {
   targetId: string;
   type: RelationshipType;
   confidence?: number;
-  reason?: string;
+  reason?: string; // e.g. 'intra_cluster', 'cross_cluster', KB reason list
 }
 
 export interface KnowledgeGraph {
@@ -102,6 +105,7 @@ export interface SigmaNodeAttributes {
   mass?: number;
   community?: number;
   communityColor?: string;
+  fixed?: boolean;   // FA2: pin this node (don't move during layout)
 }
 
 export interface SigmaEdgeAttributes {
@@ -111,6 +115,7 @@ export interface SigmaEdgeAttributes {
   type?: string;
   curvature?: number;
   zIndex?: number;
+  weight?: number;
 }
 
 // --- Animation types ---
@@ -125,4 +130,4 @@ export interface NodeAnimation {
 
 // --- Edge types ---
 
-export type EdgeType = 'CONTAINS' | 'DEFINES' | 'IMPORTS' | 'CALLS' | 'EXTENDS' | 'IMPLEMENTS' | 'SIMILAR_TO';
+export type EdgeType = 'CONTAINS' | 'DEFINES' | 'IMPORTS' | 'CALLS' | 'EXTENDS' | 'IMPLEMENTS' | 'SIMILAR_TO' | 'BELONGS_TO_CLUSTER' | 'ASSOCIATED_WITH';

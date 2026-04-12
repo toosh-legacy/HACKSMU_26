@@ -42,6 +42,7 @@ export const NODE_COLORS: Record<NodeLabel, string> = {
   Route: '#f43f5e',
   Tool: '#a855f7',
   ElephantCall: '#E2703A',
+  ClusterHub: '#F5A25D',
 };
 
 export const NODE_SIZES: Record<NodeLabel, number> = {
@@ -82,6 +83,7 @@ export const NODE_SIZES: Record<NodeLabel, number> = {
   Route: 5,
   Tool: 5,
   ElephantCall: 8,
+  ClusterHub: 20,
 };
 
 export const COMMUNITY_COLORS = [
@@ -95,15 +97,15 @@ export const getCommunityColor = (communityIndex: number): string => {
 
 export const DEFAULT_VISIBLE_LABELS: NodeLabel[] = [
   'Project', 'Package', 'Module', 'Folder', 'File',
-  'Class', 'Function', 'Method', 'Interface', 'Enum', 'Type', 'ElephantCall'
+  'Class', 'Function', 'Method', 'Interface', 'Enum', 'Type', 'ElephantCall', 'ClusterHub'
 ];
 
 export const ALL_EDGE_TYPES: EdgeType[] = [
-  'CONTAINS', 'DEFINES', 'IMPORTS', 'CALLS', 'EXTENDS', 'IMPLEMENTS', 'SIMILAR_TO'
+  'CONTAINS', 'DEFINES', 'IMPORTS', 'CALLS', 'EXTENDS', 'IMPLEMENTS', 'SIMILAR_TO', 'BELONGS_TO_CLUSTER', 'ASSOCIATED_WITH'
 ];
 
 export const DEFAULT_VISIBLE_EDGES: EdgeType[] = [
-  'CONTAINS', 'DEFINES', 'IMPORTS', 'EXTENDS', 'IMPLEMENTS', 'CALLS', 'SIMILAR_TO'
+  'CONTAINS', 'DEFINES', 'IMPORTS', 'EXTENDS', 'IMPLEMENTS', 'CALLS', 'SIMILAR_TO', 'BELONGS_TO_CLUSTER', 'ASSOCIATED_WITH'
 ];
 
 export const EDGE_INFO: Record<EdgeType, { color: string; label: string }> = {
@@ -113,5 +115,7 @@ export const EDGE_INFO: Record<EdgeType, { color: string; label: string }> = {
   CALLS: { color: '#7c3aed', label: 'Calls' },
   EXTENDS: { color: '#c2410c', label: 'Extends' },
   IMPLEMENTS: { color: '#be185d', label: 'Implements' },
-  SIMILAR_TO: { color: 'rgba(250,240,230,0.1)', label: 'Similar To' }
+  SIMILAR_TO:          { color: 'rgba(250,240,230,0.1)',   label: 'Similar To' },
+  BELONGS_TO_CLUSTER:  { color: 'rgba(245,162,93,0.18)',   label: 'Belongs To' },
+  ASSOCIATED_WITH:     { color: 'rgba(99,220,180,0.22)',   label: 'Associated With' },
 };

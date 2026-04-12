@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useRef, useEffect } from 'react';
 import { createRoot } from 'react-dom/client';
 import { NetworkGraph } from './network-graph/NetworkGraph';
 
@@ -10,7 +10,7 @@ class ErrorBoundary extends React.Component {
       return (
         <div style={{ padding: '20px', color: 'red', fontFamily: 'monospace', whiteSpace: 'pre-wrap' }}>
           <h2>React Render Crash:</h2>
-          {this.state.error?.stack || this.state.error?.message || "Unknown error"}
+          {this.state.error?.stack || this.state.error?.message || 'Unknown error'}
         </div>
       );
     }
@@ -34,100 +34,161 @@ function GeometryConstraint({ children }) {
   return <div ref={ref} style={{ width: '100%', height: '100%', position: 'relative' }}>{ready ? children : null}</div>;
 }
 
+let _graphRef = null;
+
+window.focusNetworkCluster = (clusterId) => {
+  if (_graphRef?.current) _graphRef.current.focusNode(`cluster_${clusterId}`);
+};
+
+function NetworkGraphWrapper({ graphData, communityMemberships }) {
+  const ref = useRef(null);
+  useEffect(() => {
+    _graphRef = ref;
+    return () => { _graphRef = null; };
+  }, []);
+  return (
+    <NetworkGraph
+      ref={ref}
+      graph={graphData}
+      communityMemberships={communityMemberships}
+      visibleEdgeTypes={['SIMILAR_TO', 'BELONGS_TO_CLUSTER', 'ASSOCIATED_WITH']}
+    />
+  );
+}
+
 let rootInstance = null;
 
-export function mountNetworkGraph(containerId, tribeEdges, allCalls, clusterSummaries, threshold) {
+export function mountNetworkGraph(containerId, tribeEdges, allCalls, clusterSummaries, threshold, knowledgeBase) {
   const container = document.getElementById(containerId);
   if (!container) return;
+  if (!rootInstance) rootInstance = createRoot(container);
 
-  if (!rootInstance) {
-    rootInstance = createRoot(container);
-  }
-
-  // Filter edges based on threshold
-  const filteredEdges = tribeEdges.filter(e => parseFloat(e.weight) >= threshold);
-  
-  // Track unique node IDs from filtered edges
-  const activeNodeIds = new Set();
-  filteredEdges.forEach(e => {
-    activeNodeIds.add(e.source);
-    activeNodeIds.add(e.target);
+  // cluster lookup: call_id → cluster string
+  const callCluster = new Map();
+  allCalls.forEach(c => {
+    if (c.cluster !== undefined && c.cluster !== '') callCluster.set(c.call_id, String(c.cluster));
   });
 
-  // Construct KnowledgeGraph format
-  const relationships = filteredEdges.map((e, idx) => ({
-    id: `e_${idx}`,
-    sourceId: e.source,
-    targetId: e.target,
-    type: 'SIMILAR_TO',
-    confidence: parseFloat(e.weight)
-  }));
+  // ── Tribe edges filtered by threshold ───────────────────────────
+  const filteredEdges = tribeEdges.filter(e => parseFloat(e.weight) >= threshold);
 
-  // Degree = number of strong tribe connections — used to size nodes
+  // ── All node IDs: tribe-connected + every valid clustered call ───
+  const activeNodeIds = new Set();
+  filteredEdges.forEach(e => { activeNodeIds.add(e.source); activeNodeIds.add(e.target); });
+  allCalls.forEach(c => {
+    if (c.cluster !== undefined && c.cluster !== '' && c.valid !== 'False') {
+      activeNodeIds.add(c.call_id);
+    }
+  });
+
+  // ── Degree for node sizing ───────────────────────────────────────
   const nodeDegree = new Map();
   filteredEdges.forEach(e => {
     nodeDegree.set(e.source, (nodeDegree.get(e.source) || 0) + 1);
     nodeDegree.set(e.target, (nodeDegree.get(e.target) || 0) + 1);
   });
-  const degreeValues = [...activeNodeIds].map(id => nodeDegree.get(id) || 1);
-  const minDeg = Math.min(...degreeValues);
-  const maxDeg = Math.max(...degreeValues);
+  const degrees = [...activeNodeIds].map(id => nodeDegree.get(id) || 1);
+  const minDeg = Math.min(...degrees);
+  const maxDeg = Math.max(...degrees);
   const degRange = maxDeg - minDeg || 1;
 
-  const nodes = [...activeNodeIds].map(nodeId => {
-    const callData = allCalls.find(c => c.call_id === nodeId) || {};
-    const deg = nodeDegree.get(nodeId) || 1;
-    // Normalize degree to size range [5, 20]
-    const nodeSize = 5 + ((deg - minDeg) / degRange) * 15;
-    return {
-      id: nodeId,
-      label: 'ElephantCall',
-      properties: {
-        name: `Call ${nodeId}`,
-        filePath: '',
-        nodeSize,
-      }
-    };
-  });
-  
-  // Create community mapping for cluster coloring based on Tribal Palette
+  // ── Call nodes ───────────────────────────────────────────────────
+  const callNodes = [...activeNodeIds].map(id => ({
+    id,
+    label: 'ElephantCall',
+    properties: {
+      name: id,
+      filePath: '',
+      nodeSize: 5 + ((nodeDegree.get(id) || 1) - minDeg) / degRange * 12,
+    },
+  }));
+
+  // ── Cluster hub nodes ────────────────────────────────────────────
+  const clusterHubNodes = Object.entries(clusterSummaries).map(([id, s]) => ({
+    id: `cluster_${id}`,
+    label: 'ClusterHub',
+    properties: {
+      name: `C${id} · ${s.count} calls · ${s.mean_f0_hz}Hz`,
+      filePath: '',
+      nodeSize: Math.max(18, 12 + Math.sqrt(s.count || 1) * 2),
+      clusterId: parseInt(id),
+    },
+  }));
+
+  const nodes = [...callNodes, ...clusterHubNodes];
+
+  // ── Community memberships for coloring ──────────────────────────
   const communityMemberships = new Map();
-  nodes.forEach(n => {
-    const callData = allCalls.find(c => c.call_id === n.id) || {};
-    communityMemberships.set(n.id, parseInt(callData.cluster || "0"));
+  callNodes.forEach(n => {
+    communityMemberships.set(n.id, parseInt(callCluster.get(n.id) || '0'));
   });
+  clusterHubNodes.forEach(n => {
+    communityMemberships.set(n.id, n.properties.clusterId);
+  });
+
+  // ── SIMILAR_TO edges (tribe) ─────────────────────────────────────
+  const similarEdges = filteredEdges.map((e, idx) => ({
+    id: `e_${idx}`,
+    sourceId: e.source,
+    targetId: e.target,
+    type: 'SIMILAR_TO',
+    confidence: parseFloat(e.weight),
+  }));
+
+  // ── BELONGS_TO_CLUSTER — every call → its hub ────────────────────
+  const belongsEdges = [];
+  callNodes.forEach((n, idx) => {
+    const cid = callCluster.get(n.id);
+    if (cid !== undefined && clusterSummaries[cid] !== undefined) {
+      belongsEdges.push({
+        id: `be_${idx}`,
+        sourceId: n.id,
+        targetId: `cluster_${cid}`,
+        type: 'BELONGS_TO_CLUSTER',
+        confidence: 1.0,
+      });
+    }
+  });
+
+  // ── ASSOCIATED_WITH from knowledge base ──────────────────────────
+  const associatedEdges = [];
+  if (knowledgeBase?.association_links) {
+    knowledgeBase.association_links.forEach((link, idx) => {
+      if (activeNodeIds.has(link.source) && activeNodeIds.has(link.target)) {
+        associatedEdges.push({
+          id: `ae_${idx}`,
+          sourceId: link.source,
+          targetId: link.target,
+          type: 'ASSOCIATED_WITH',
+          confidence: link.combined_score,
+        });
+      }
+    });
+  }
+
+  const relationships = [...similarEdges, ...belongsEdges, ...associatedEdges];
+
+  if (nodes.length === 0) {
+    rootInstance.render(
+      <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--linen)', fontFamily: 'var(--font-mono)' }}>
+        <p style={{ opacity: 0.5 }}>No data — run the pipeline first.</p>
+      </div>
+    );
+    return;
+  }
 
   try {
-    const graphData = {
-      nodes,
-      relationships,
-      nodeCount: nodes.length,
-      relationshipCount: relationships.length
-    };
-
-    if (nodes.length === 0) {
-      rootInstance.render(
-        <div style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: 'var(--linen)', fontFamily: 'var(--font-mono)' }}>
-          <p style={{ opacity: 0.5, marginBottom: 8 }}>Network Error</p>
-          <p>No connections found above the {threshold} minimum threshold.</p>
-          <p style={{ opacity: 0.5, fontSize: 12, marginTop: 8 }}>(Fetched {tribeEdges.length} total edges from CSV)</p>
-        </div>
-      );
-      return;
-    }
-
     rootInstance.render(
       <ErrorBoundary>
         <GeometryConstraint>
-          <NetworkGraph 
-            graph={graphData} 
+          <NetworkGraphWrapper
+            graphData={{ nodes, relationships, nodeCount: nodes.length, relationshipCount: relationships.length }}
             communityMemberships={communityMemberships}
-            visibleEdgeTypes={['SIMILAR_TO']} // Ensure it renders our custom edge type
           />
         </GeometryConstraint>
       </ErrorBoundary>
     );
   } catch (err) {
-    container.innerHTML = `<div style="padding: 20px; color: red; font-family: monospace; white-space: pre-wrap;"><h1>React Mount Crash:</h1>${err.stack || err.message}</div>`;
+    container.innerHTML = `<div style="padding:20px;color:red;font-family:monospace"><h1>Crash:</h1>${err.stack || err.message}</div>`;
   }
 }
