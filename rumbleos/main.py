@@ -53,10 +53,11 @@ def save_result(result: dict, output_dir: str):
     s          = result.get('seg_start_sample')
     e          = result.get('seg_end_sample')
     if full_audio is not None and s is not None and e is not None:
-        output_audio = full_audio.copy()
+        # Silence everywhere except the cleaned elephant call window
+        output_audio = np.zeros(len(full_audio), dtype=np.float32)
         output_audio[s:e] = cleaned[:e - s]
     else:
-        output_audio = cleaned  # fallback: segment only (pre-fix behaviour)
+        output_audio = cleaned  # fallback: segment only
 
     # Save primary cleaned WAV
     wavfile.write(str(out / f"{call_id}_clean.wav"),
@@ -65,7 +66,7 @@ def save_result(result: dict, output_dir: str):
     # Save second elephant if detected
     if result.get('multi_elephant') and result.get('cleaned_b') is not None:
         if full_audio is not None and s is not None and e is not None:
-            output_b = full_audio.copy()
+            output_b = np.zeros(len(full_audio), dtype=np.float32)
             output_b[s:e] = result['cleaned_b'][:e - s]
         else:
             output_b = result['cleaned_b']
