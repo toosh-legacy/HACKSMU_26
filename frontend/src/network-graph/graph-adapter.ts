@@ -101,7 +101,7 @@ export const knowledgeGraphToGraphology = (
 
     nodePositions.set(node.id, { x, y });
 
-    const baseSize = NODE_SIZES[node.label] || 8;
+    const baseSize = (typeof node.properties.nodeSize === 'number' ? node.properties.nodeSize : null) ?? NODE_SIZES[node.label] ?? 8;
     const scaledSize = getScaledNodeSize(baseSize, nodeCount);
 
     graph.addNode(node.id, {
@@ -146,7 +146,7 @@ export const knowledgeGraphToGraphology = (
 
     nodePositions.set(nodeId, { x, y });
 
-    const baseSize = NODE_SIZES[node.label] || 8;
+    const baseSize = (typeof node.properties.nodeSize === 'number' ? node.properties.nodeSize : null) ?? NODE_SIZES[node.label] ?? 8;
     const scaledSize = getScaledNodeSize(baseSize, nodeCount);
     const hasCommunity = communityIndex !== undefined;
     const usesCommunityColor = hasCommunity && symbolTypes.has(node.label);

@@ -56,12 +56,12 @@ const getFA2Settings = (nodeCount: number) => {
   const isMedium = nodeCount >= 500 && nodeCount < 2000;
   const isLarge = nodeCount >= 2000 && nodeCount < 10000;
   return {
-    gravity: isSmall ? 0.8 : isMedium ? 0.5 : isLarge ? 0.3 : 0.15,
-    scalingRatio: isSmall ? 15 : isMedium ? 30 : isLarge ? 60 : 100,
-    slowDown: isSmall ? 1 : isMedium ? 2 : isLarge ? 3 : 5,
+    gravity: isSmall ? 1.3 : isMedium ? 0.5 : isLarge ? 0.3 : 0.15,
+    scalingRatio: isSmall ? 9 : isMedium ? 30 : isLarge ? 60 : 100,
+    slowDown: isSmall ? 2 : isMedium ? 2 : isLarge ? 3 : 5,
     barnesHutOptimize: nodeCount > 200,
     barnesHutTheta: isLarge ? 0.8 : 0.6,
-    strongGravityMode: false,
+    strongGravityMode: isSmall,
     outboundAttractionDistribution: true,
     linLogMode: false,
     adjustSizes: true,

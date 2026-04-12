@@ -63,15 +63,29 @@ export function mountNetworkGraph(containerId, tribeEdges, allCalls, clusterSumm
     confidence: parseFloat(e.weight)
   }));
 
+  // Degree = number of strong tribe connections — used to size nodes
+  const nodeDegree = new Map();
+  filteredEdges.forEach(e => {
+    nodeDegree.set(e.source, (nodeDegree.get(e.source) || 0) + 1);
+    nodeDegree.set(e.target, (nodeDegree.get(e.target) || 0) + 1);
+  });
+  const degreeValues = [...activeNodeIds].map(id => nodeDegree.get(id) || 1);
+  const minDeg = Math.min(...degreeValues);
+  const maxDeg = Math.max(...degreeValues);
+  const degRange = maxDeg - minDeg || 1;
+
   const nodes = [...activeNodeIds].map(nodeId => {
     const callData = allCalls.find(c => c.call_id === nodeId) || {};
-    const cluster = callData.cluster || "0";
+    const deg = nodeDegree.get(nodeId) || 1;
+    // Normalize degree to size range [5, 20]
+    const nodeSize = 5 + ((deg - minDeg) / degRange) * 15;
     return {
       id: nodeId,
-      label: 'ElephantCall', // Matches updated Sigma constants
+      label: 'ElephantCall',
       properties: {
         name: `Call ${nodeId}`,
         filePath: '',
+        nodeSize,
       }
     };
   });

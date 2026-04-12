@@ -55,15 +55,17 @@
             <h1>Tribal</h1>
           </a>
         </div>
-        <nav class="header-nav">
-          <button class="nav-btn active" data-section="dashboard" id="nav-dashboard">Dashboard</button>
-          <button class="nav-btn" data-section="explorer" id="nav-explorer">Explorer</button>
-          <button class="nav-btn" data-section="clusters" id="nav-clusters">Clusters</button>
-          <button class="nav-btn" data-section="network" id="nav-network">Network</button>
-        </nav>
+        <div id="header-meta"></div>
       </header>
 
+      <!-- Bottom floating nav -->
+      <div id="app-nav-root"></div>
+
       <section id="section-dashboard" class="section active">
+        <div class="section-header">
+          <h2 class="section-title">Dashboard</h2>
+          <p class="section-desc">Pipeline run overview — noise removed, calls analysed, clusters found.</p>
+        </div>
         <div class="stats-grid" id="stats-grid"></div>
         <div class="dashboard-grid">
           <div class="card" id="noise-distribution-card">
@@ -78,6 +80,10 @@
       </section>
 
       <section id="section-explorer" class="section">
+        <div class="section-header">
+          <h2 class="section-title">Explorer</h2>
+          <p class="section-desc">Browse every processed call — filter by noise type or cluster, inspect spectrograms and audio.</p>
+        </div>
         <div class="explorer-layout">
           <aside class="call-list-panel" id="call-list-panel">
             <div class="search-box">
@@ -99,6 +105,10 @@
       </section>
 
       <section id="section-clusters" class="section">
+        <div class="section-header">
+          <h2 class="section-title">Clusters</h2>
+          <p class="section-desc">UMAP + K-means behavioural groupings — each cluster represents a distinct communication pattern.</p>
+        </div>
         <div class="clusters-grid" id="clusters-grid"></div>
       </section>
 
