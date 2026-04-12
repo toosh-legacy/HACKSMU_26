@@ -11,6 +11,7 @@ env/
 .DS_Store
 .vscode/
 .idea/
+.codex
 rumbleos/results/
 rumbleos/data/recordings/
 </content>
