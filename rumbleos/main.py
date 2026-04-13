@@ -310,6 +310,15 @@ def run_full_file_cleaning(csv_path, audio_dir, output_dir):
     out = Path(output_dir)
     out.mkdir(parents=True, exist_ok=True)
 
+    # If PROCESS_ONLY is set, restrict to that single file (upload path)
+    process_only = os.environ.get("PROCESS_ONLY", "").strip()
+    if process_only:
+        df = df[df['filename'] == process_only].copy()
+        if df.empty:
+            print(f"[full] PROCESS_ONLY={process_only!r} not found in CSV — nothing to do")
+            return []
+        print(f"[full] PROCESS_ONLY={process_only!r} — processing 1 file")
+
     # Build per-file metadata from timestamps
     file_meta = {}
     for _, row in df.iterrows():
@@ -330,6 +339,12 @@ def run_full_file_cleaning(csv_path, audio_dir, output_dir):
 
         noise_type = Counter(meta['noise_types']).most_common(1)[0][0]
         first_call = meta['first_call']
+
+        # If every annotation says "unknown", defer to FingerprintAgent
+        # auto-detection so NMFMaskingAgent gets a real noise label.
+        if noise_type in ('unknown', '', None):
+            noise_type = '_auto_'  # sentinel — resolved after audio load
+
         print(f"[full] {filename}  noise={noise_type}  first_call={first_call:.1f}s")
 
         # ── Load at native sample rate ────────────────────────────────
@@ -368,6 +383,14 @@ def run_full_file_cleaning(csv_path, audio_dir, output_dir):
         noise_ref = (y[ns:ne]
                      if ne > ns and (ne - ns) > TARGET_SR // 4
                      else np.zeros(TARGET_SR * 3, dtype=np.float32))
+
+        # ── Auto-detect noise type when CSV says "unknown" ────────────
+        if noise_type == '_auto_':
+            fing_probe = FingerprintAgent(0, None, None, name="FingProbe")
+            probe_seg = noise_ref if len(noise_ref) > TARGET_SR // 4 else y[:TARGET_SR * 3]
+            probe_msg = fing_probe.process({'segment': probe_seg, 'sr': TARGET_SR, 'noise_type': None})
+            noise_type = probe_msg.get('noise_type', 'car')
+            print(f"[full]   auto-detected noise_type={noise_type}")
 
         # ── Run full file through NMF in one shot ────────────────────
         # No windowing, no overlap-add.  One STFT on the entire signal,
@@ -441,6 +464,8 @@ def run_full_file_cleaning(csv_path, audio_dir, output_dir):
             msg = over_agent.process(msg)
             msg = score_agent.process(msg)
             score_results.append(msg)
+            if 'cleaned' in msg:
+                save_result(msg, output_dir)
             print(f"  OK {call_id} | F0={msg.get('f0_hz')}Hz | "
                   f"SNR+{msg.get('snr_improvement_db')}dB | valid={msg.get('valid')}")
         except Exception as exc:
