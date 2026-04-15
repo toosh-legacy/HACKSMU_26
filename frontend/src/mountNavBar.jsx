@@ -5,6 +5,7 @@ import {
   Search,
   Layers,
   Share2,
+  Upload,
 } from "lucide-react";
 import DynamicActionBar from "./components/ui/dynamic-action";
 
@@ -45,6 +46,16 @@ const NetworkContent = () => (
     <p style={{ fontSize: "0.7rem", color: "rgba(250,240,230,0.4)", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: "8px" }}>Tribe Graph</p>
     <p style={{ fontSize: "0.82rem", color: "rgba(250,240,230,0.7)", lineHeight: 1.5 }}>
       Sigma.js force-directed graph of inter-herd acoustic similarity.
+    </p>
+    <div style={{ height: "1px", background: "rgba(250,240,230,0.08)", margin: "12px 0 0" }} />
+  </div>
+);
+
+const UploadContent = () => (
+  <div style={{ padding: "16px 20px 4px" }}>
+    <p style={{ fontSize: "0.7rem", color: "rgba(250,240,230,0.4)", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: "8px" }}>Process New File</p>
+    <p style={{ fontSize: "0.82rem", color: "rgba(250,240,230,0.7)", lineHeight: 1.5 }}>
+      Upload a .wav recording — pipeline runs automatically and results reload.
     </p>
     <div style={{ height: "1px", background: "rgba(250,240,230,0.08)", margin: "12px 0 0" }} />
   </div>
@@ -105,6 +116,15 @@ function AppNav() {
       dimensions: { width: 320, height: 90 },
       onClick: () => navigate("network"),
       isActive: activeSection === "network",
+    },
+    {
+      id: "upload",
+      label: "Upload",
+      icon: Upload,
+      content: <UploadContent />,
+      dimensions: { width: 340, height: 90 },
+      onClick: () => navigate("upload"),
+      isActive: activeSection === "upload",
     },
   ];
 

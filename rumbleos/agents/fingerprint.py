@@ -17,9 +17,10 @@ class FingerprintAgent(BaseAgent):
     def process(self, msg: dict) -> dict:
         if 'error' in msg: return msg
 
-        # If upstream already supplied a label (e.g. from CSV ground truth),
-        # trust it. Heuristic only runs for live/unlabeled audio.
-        if msg.get('noise_type'):
+        # If upstream already supplied a known label (e.g. from CSV ground truth),
+        # trust it. "unknown" is not a known label — run auto-detection instead.
+        nt = msg.get('noise_type')
+        if nt and nt != 'unknown':
             return msg
 
         audio = msg['segment']
