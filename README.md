@@ -1,4 +1,15 @@
-# Tribal
+```
+  ████████╗██████╗ ██╗██████╗  █████╗ ██╗
+  ╚══██╔══╝██╔══██╗██║██╔══██╗██╔══██╗██║
+     ██║   ██████╔╝██║██████╔╝███████║██║
+     ██║   ██╔══██╗██║██╔══██╗██╔══██║██║
+     ██║   ██║  ██║██║██████╔╝██║  ██║███████╗
+     ╚═╝   ╚═╝  ╚═╝╚═╝╚═════╝ ╚═╝  ╚═╝╚══════╝
+
+  🐘  hear what humans can't  •  HackSMU 2026
+  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  10 Hz ▁▂▃▄▅▆▇█▇▆▅▄▃▂▁ 35 Hz  →  clean signal
+```
 
 A multi-agent signal processing system that strips mechanical noise from elephant
 infrasound recordings and uncovers behavioral communication patterns. Built at HackSMU 2026.
