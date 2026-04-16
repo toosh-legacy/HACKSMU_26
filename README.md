@@ -14,11 +14,13 @@
 A multi-agent signal processing system that strips mechanical noise from elephant
 infrasound recordings and uncovers behavioral communication patterns. Built at HackSMU 2026.
 
+**Devpost:** https://devpost.com/software/le-go-snm4q6
+
 ---
 
 ## What It Does
 
-Elephants communicate through infrasound — low-frequency rumbles (10–35 Hz fundamental,
+Elephants communicate through infrasound - low-frequency rumbles (10–35 Hz fundamental,
 harmonics to ~1000 Hz) inaudible to humans. Field recordings are almost always contaminated
 by airplane flyovers, vehicle engines, or generator hum at overlapping frequencies.
 
@@ -76,7 +78,7 @@ explorer, and cluster analysis view.
 │                           ANALYSIS LAYER                                    │
 │                                                                             │
 │  ┌───────────────────────────────────────────────────────────────────────┐ │
-│  │  ClusteringAgent  (Stage 7 — fires once, after all calls collected)  │ │
+│  │  ClusteringAgent  (Stage 7 - fires once, after all calls collected)  │ │
 │  │                                                                       │ │
 │  │  feature vec  →  StandardScaler  →  UMAP (2D)  →  K-means (k≤7)    │ │
 │  │  + metadata                           or PCA                          │ │
@@ -93,7 +95,7 @@ explorer, and cluster analysis view.
 
 ---
 
-## Pipeline — Stage by Stage
+## Pipeline - Stage by Stage
 
 ### Stage 1 · PreprocessAgent
 
@@ -117,7 +119,7 @@ WAV (native SR, any bit depth)
      → spliced back into original file at write time (non-call regions bit-perfect)
 ```
 
-**Why 4 kHz?** At `n_fft=2048`, `sr=4000` gives **1.953 Hz/bin** — enough resolution to
+**Why 4 kHz?** At `n_fft=2048`, `sr=4000` gives **1.953 Hz/bin** - enough resolution to
 resolve the 10–35 Hz elephant fundamental without aliasing at the 1000 Hz harmonic ceiling.
 Halving the sample rate also cuts NMF compute by 8× (STFT frames scale linearly with SR).
 
@@ -126,7 +128,7 @@ Halving the sample rate also cuts NMF compute by 8× (STFT frames scale linearly
 ### Stage 2 · FingerprintAgent
 
 Classifies the mechanical noise source from the noise reference segment using
-**Welch PSD** (`nperseg=2048`). No ML — pure spectral fingerprinting.
+**Welch PSD** (`nperseg=2048`). No ML - pure spectral fingerprinting.
 
 ```
 noise_ref  →  scipy.signal.welch(fs=4000, nperseg=2048)
@@ -237,7 +239,7 @@ This is the noise separation engine. Three sub-steps: spectral subtraction, NMF 
 ```
 
 **Why KL divergence?** Beta-loss=2 (Frobenius) blurred the 18 Hz fundamental into the noise
-floor. KL (beta=1) enforces sparse, parts-based decomposition — it prefers representations
+floor. KL (beta=1) enforces sparse, parts-based decomposition - it prefers representations
 where each component "owns" a narrow spectral region, which matches harmonic structure far
 better than a least-squares solution.
 
@@ -276,7 +278,7 @@ fits a decay model to the surviving harmonic series and reconstructs missing ban
       scale its STFT bins to expected energy:
           recon = cleaned_mag[neighbor_bins] × (expected / E_neighbor)
       blend:  cleaned_mag[target] = 0.3·recon + 0.7·cleaned_mag[target]
-              (conservative — trust Wiener mask, only nudge toward expected)
+              (conservative - trust Wiener mask, only nudge toward expected)
 
   ISTFT(cleaned_mag × exp(i·phase))  →  cleaned audio
   length-matched to input segment (ISTFT rounding ±few samples corrected)
@@ -301,7 +303,7 @@ Detects simultaneous callers and separates them via competitive Wiener masking.
             secondary peak must satisfy:
               energy_ratio  ≥ 0.40  (not a sidelobe)
               sec_harmonics ≥ 3     (own harmonic series above 3×median floor)
-              |F0_a - F0_b| ≥ 5 Hz  (Poole 2005 — below this = harmonics of same caller)
+              |F0_a - F0_b| ≥ 5 Hz  (Poole 2005 - below this = harmonics of same caller)
 
             if all three pass → multi_elephant = True
 
@@ -324,7 +326,7 @@ Detects simultaneous callers and separates them via competitive Wiener masking.
 ```
 
 **Insight:** within a single call, harmonics never cross. When two callers overlap, their
-harmonics do cross — each NMF component scores higher for one F0 than the other, giving the
+harmonics do cross - each NMF component scores higher for one F0 than the other, giving the
 competitive mask a natural per-component "ownership" to exploit.
 
 ---
@@ -361,7 +363,7 @@ competitive mask a natural per-component "ownership" to exploit.
 ```
 
 **Why tonal SNR?** A plain band-energy SNR goes negative when generator RPM harmonics and
-elephant harmonics share the same spectral band — the NMF correctly removes the in-band noise
+elephant harmonics share the same spectral band - the NMF correctly removes the in-band noise
 but the broadband ratio sees less energy and reports degradation. Harmonic-vs-inter-harmonic
 measures only the bins that matter.
 
@@ -426,7 +428,7 @@ measures only the bins that matter.
 ## Signal Parameters
 
 ```python
-# DO NOT change without re-tuning harmonic scoring —
+# DO NOT change without re-tuning harmonic scoring -
 # TARGET_SR, N_FFT, HOP_LENGTH are tightly coupled.
 
 TARGET_SR          = 4000    # Hz → 1.953 Hz/bin at n_fft=2048
@@ -454,13 +456,13 @@ NOISE_REF_SEC      = 3.0     # seconds of pre-call noise for spectral subtractio
 ```
 rumbleos/
   agents/
-    preprocess.py        Stage 1 — load, resample, bandpass, segment
-    fingerprint.py       Stage 2 — Welch PSD comb/ratio classifier
-    nmf_masking.py       Stage 3 — spectral subtraction + NMF + Wiener mask
-    reconstruction.py   Stage 4 — exponential decay harmonic reconstruction
-    overlap.py           Stage 5 — dual F0 detection + competitive Wiener separation
-    quality_scorer.py    Stage 6 — tonal SNR, harmonic completeness, validity
-    clustering.py        Stage 7 — UMAP + K-means + Tribe graph + Gemini
+    preprocess.py        Stage 1 - load, resample, bandpass, segment
+    fingerprint.py       Stage 2 - Welch PSD comb/ratio classifier
+    nmf_masking.py       Stage 3 - spectral subtraction + NMF + Wiener mask
+    reconstruction.py   Stage 4 - exponential decay harmonic reconstruction
+    overlap.py           Stage 5 - dual F0 detection + competitive Wiener separation
+    quality_scorer.py    Stage 6 - tonal SNR, harmonic completeness, validity
+    clustering.py        Stage 7 - UMAP + K-means + Tribe graph + Gemini
     sensecap.py          SenseCAP Indicator serial event streamer
     base.py              BaseAgent (multiprocessing.Process + queue wiring)
     runtime.py           OpenBLAS thread-count config for RPi
@@ -521,7 +523,7 @@ OUTPUT_DIR=results
 ### Pipeline modes
 
 ```python
-# main.py — configure at the top:
+# main.py - configure at the top:
 SEQUENTIAL_MODE = True    # single process, full tracebacks (debug)
 FULL_FILE_MODE  = True    # clean entire recording vs. per-call windows only
 N_WORKERS       = 4       # parallel agents (ignored in SEQUENTIAL_MODE)
@@ -603,7 +605,7 @@ r=NMFMaskingAgent(0,None,None,name='T').process(
     {'segment':noisy,'sr':sr,'noise_type':'airplane',
      'original':noisy,'call_id':'t','noise_ref':np.zeros(sr*3)})
 assert 14<=r['detected_f0']<=22, r['detected_f0']
-print('Stage 3 OK — F0=', r['detected_f0'])
+print('Stage 3 OK - F0=', r['detected_f0'])
 "
 ```
 
@@ -620,17 +622,17 @@ print('Stage 3 OK — F0=', r['detected_f0'])
 | Queue deadlock | Set `SEQUENTIAL_MODE = True` |
 | Out of memory on Pi | Set `N_WORKERS=2`, `max_iter=200` |
 | NMF F0 wrong | Verify `sr=4000`, `n_fft=2048`; raise `max_iter` to 600 |
-| Gemini 429 quota | Free tier limit — retry after 60 s or rotate key |
+| Gemini 429 quota | Free tier limit - retry after 60 s or rotate key |
 | All-ones mask (0 dB) | Raise `ELEPHANT_SCORE_MIN`; check `TOP_K_ELEPHANT` |
 
 ---
 
 ## Research Foundation
 
-- Payne et al. (1986) — infrasonic calls of the Asian elephant
-- Poole et al. (1988) — social contexts of low-frequency elephant calls  
-- Poole (2005) — F0 range and ≥ 5 Hz gap between simultaneous callers
-- Lee & Seung (1999) — NMF for parts-based representations
-- Févotte et al. (2009) — NMF with KL divergence (beta=1 multiplicative updates)
-- Scalart & Filho (1996) — Wiener filter from a priori SNR estimation
-- McInnes et al. (2018) — UMAP: Uniform Manifold Approximation and Projection
+- Payne et al. (1986) - infrasonic calls of the Asian elephant
+- Poole et al. (1988) - social contexts of low-frequency elephant calls  
+- Poole (2005) - F0 range and ≥ 5 Hz gap between simultaneous callers
+- Lee & Seung (1999) - NMF for parts-based representations
+- Févotte et al. (2009) - NMF with KL divergence (beta=1 multiplicative updates)
+- Scalart & Filho (1996) - Wiener filter from a priori SNR estimation
+- McInnes et al. (2018) - UMAP: Uniform Manifold Approximation and Projection
