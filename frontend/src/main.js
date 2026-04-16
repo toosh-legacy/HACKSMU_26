@@ -1,6 +1,7 @@
 import { mountNetworkGraph } from './mountNetworkGraph.jsx';
 import { mountAuroraWaves } from './mountAuroraWaves.jsx';
 import { mountNavBar } from './mountNavBar.jsx';
+import { mountHomepage } from './mountHomepage.jsx';
 
 const SESSION_KEY = 'tribal_session';
 
@@ -546,3 +547,4 @@ async function init() {
 init();
 mountAuroraWaves('aurora-banner');
 mountNavBar('app-nav-root');
+mountHomepage('homepage-react-root');
