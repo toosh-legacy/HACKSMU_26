@@ -28,196 +28,27 @@
       <div id="aurora-banner" style="position:absolute;inset:0;width:100%;height:100%;z-index:0;"></div>
 
       <div class="hero">
+        <div class="hero-chips">
+          <span class="hero-chip">Noise removal</span>
+          <span class="hero-chip-dot"></span>
+          <span class="hero-chip">Call separation</span>
+          <span class="hero-chip-dot"></span>
+          <span class="hero-chip">Behavioural insights</span>
+        </div>
         <h1>HEAR WHAT THE<br/><span>EARTH HIDES.</span></h1>
-        <p>A multi-agent pipeline built for ElephantVoices — stripping mechanical noise from field recordings so decades of elephant communication research doesn't go to waste.</p>
+        <p>Upload a noisy .wav file → 7 agents strip airplane, car &amp; generator noise → get clean audio and behavioural insights from elephant calls.</p>
         <button class="process-btn" id="process-btn">
           <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>
           Process Recordings
         </button>
+        <p class="hero-scroll-hint">↓ scroll to see how it works</p>
       </div>
 
     </section>
 
     <!-- ── Homepage Content ──────────────────────────────────── -->
     <div id="homepage-content">
-
-      <!-- Research context -->
-      <section class="hp-section" id="hp-research">
-        <hr class="hp-rule" />
-        <div class="hp-section-inner">
-          <div class="hp-prose-col">
-            <h2 class="hp-section-heading">Research context</h2>
-            <blockquote class="hp-quote">
-              <p>"When an elephant rumble overlaps in both time and frequency with noise sources, it becomes difficult or impossible to measure the acoustic properties of the call without influence from the noise source, rendering these recordings useless for analysis."</p>
-              <footer>— Dr. Mickey Pardo, ElephantVoices</footer>
-            </blockquote>
-            <p class="hp-body">ElephantVoices has been recording and cataloguing elephant calls since the 1980s. Decades of field work in Kenya and Mozambique have produced thousands of recordings — many of which are partially or entirely unusable because of mechanical noise that arrived in frame. Airplanes, generators, and passing vehicles overlap the infrasound band where elephants communicate.</p>
-            <p class="hp-body">Tribal processes those recordings. It identifies the noise type, separates the signal from the interference, and returns a cleaned WAV alongside acoustic measurements that can actually be trusted.</p>
-          </div>
-          <div class="hp-cards-col">
-            <div class="hp-field-cards">
-              <div class="hp-field-card">
-                <span class="hp-field-label">Amboseli, Kenya</span>
-                <p class="hp-field-desc">Long-term behavioral study — core of ElephantVoices' research archive.</p>
-              </div>
-              <div class="hp-field-card">
-                <span class="hp-field-label">Maasai Mara, Kenya</span>
-                <p class="hp-field-desc">Cross-population analysis — comparing call structure across social groups.</p>
-              </div>
-              <div class="hp-field-card">
-                <span class="hp-field-label">Gorongosa, Mozambique</span>
-                <p class="hp-field-desc">Post-conflict recovery — examining how trauma affects communication and social bonds.</p>
-              </div>
-            </div>
-          </div>
-        </div>
-        <div class="hp-fact-strip">
-          <div class="hp-fact">
-            <span class="hp-fact-label">Fundamental frequency</span>
-            <span class="hp-fact-value"><code>10–20 Hz</code></span>
-            <span class="hp-fact-note">Below human hearing — only visible in spectrogram</span>
-          </div>
-          <div class="hp-fact">
-            <span class="hp-fact-label">Harmonic ceiling</span>
-            <span class="hp-fact-value"><code>up to 1,000 Hz</code></span>
-            <span class="hp-fact-note">Higher harmonics attenuate with distance</span>
-          </div>
-          <div class="hp-fact">
-            <span class="hp-fact-label">What you actually hear</span>
-            <span class="hp-fact-value"><code>upper harmonics only</code></span>
-            <span class="hp-fact-note">Lowest frequencies lost on standard speakers</span>
-          </div>
-        </div>
-      </section>
-
-      <!-- Why it's hard -->
-      <section class="hp-section" id="hp-why">
-        <hr class="hp-rule" />
-        <div class="hp-section-inner hp-section-inner--full">
-          <h2 class="hp-section-heading">Why it's hard</h2>
-          <div class="hp-card-grid hp-card-grid--4">
-            <div class="hp-card">
-              <h3 class="hp-card-title">Frequency overlap</h3>
-              <p class="hp-card-body">Generator harmonics and airplane noise land directly in the 10–1,000 Hz band where elephant calls live. Simple high-pass filters remove the signal along with the noise.</p>
-            </div>
-            <div class="hp-card">
-              <h3 class="hp-card-title">No clean reference</h3>
-              <p class="hp-card-body">Field recordings rarely include a noise-only segment captured in the same conditions. Standard spectral subtraction requires one. NMF-based separation doesn't.</p>
-            </div>
-            <div class="hp-card">
-              <h3 class="hp-card-title">Simultaneous callers</h3>
-              <p class="hp-card-body">Multiple elephants often rumble at the same time. Their calls overlap in frequency, making it hard to isolate individual F0 tracks without a second decomposition pass.</p>
-            </div>
-            <div class="hp-card">
-              <h3 class="hp-card-title">Scale of the archive</h3>
-              <p class="hp-card-body">Decades of recordings — too many to clean by hand. Any solution has to run unattended across hundreds of files and flag its own uncertainty.</p>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <!-- Who it's for -->
-      <section class="hp-section" id="hp-who">
-        <hr class="hp-rule" />
-        <div class="hp-section-inner hp-section-inner--full">
-          <h2 class="hp-section-heading">Who it's for</h2>
-          <div class="hp-card-grid hp-card-grid--3">
-            <div class="hp-card">
-              <h3 class="hp-card-title">Field biologists</h3>
-              <p class="hp-card-body">Drop a WAV file and get a cleaned version back with acoustic measurements. No signal processing expertise required.</p>
-            </div>
-            <div class="hp-card">
-              <h3 class="hp-card-title">Acoustic researchers</h3>
-              <p class="hp-card-body">Access per-call F0 estimates, harmonic completeness scores, and SNR deltas. Cluster views surface recurring call patterns across the dataset.</p>
-            </div>
-            <div class="hp-card">
-              <h3 class="hp-card-title">Conservation teams</h3>
-              <p class="hp-card-body">Behavioral hypotheses generated from the cluster structure give non-specialists a starting point for interpreting what the data might mean.</p>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <!-- What you get -->
-      <section class="hp-section" id="hp-what">
-        <hr class="hp-rule" />
-        <div class="hp-section-inner hp-section-inner--full">
-          <h2 class="hp-section-heading">What you get</h2>
-          <div class="hp-card-grid hp-card-grid--4">
-            <div class="hp-card">
-              <h3 class="hp-card-title">Cleaned WAV files</h3>
-              <p class="hp-card-body">Noise removed via NMF soft-mask. Original dynamic range preserved. Harmonic structure reconstructed where the noise obscured it.</p>
-            </div>
-            <div class="hp-card">
-              <h3 class="hp-card-title">Separated callers</h3>
-              <p class="hp-card-body">Dual-F0 detection identifies simultaneous calls. Each caller gets their own output track when the algorithm finds two distinct fundamental frequencies.</p>
-            </div>
-            <div class="hp-card">
-              <h3 class="hp-card-title">Behavioural clusters</h3>
-              <p class="hp-card-body">UMAP projection followed by K-means groups calls by acoustic similarity. Each cluster gets a label, a summary, and a similarity graph across herds.</p>
-            </div>
-            <div class="hp-card">
-              <h3 class="hp-card-title">AI hypotheses</h3>
-              <p class="hp-card-body">Gemini reads the cluster summaries and returns plain-language hypotheses about what each group of calls might represent behaviourally.</p>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <!-- Pipeline strip -->
-      <section class="hp-section" id="hp-pipeline">
-        <hr class="hp-rule" />
-        <div class="hp-section-inner hp-section-inner--full">
-          <h2 class="hp-section-heading">Pipeline</h2>
-          <div class="hp-pipeline-strip">
-            <div class="hp-agent">
-              <span class="hp-agent-name">PreprocessAgent</span>
-              <span class="hp-agent-desc">Resample → bandpass <code>10–1000 Hz</code></span>
-            </div>
-            <div class="hp-agent-arrow">→</div>
-            <div class="hp-agent">
-              <span class="hp-agent-name">FingerprintAgent</span>
-              <span class="hp-agent-desc">Classify noise type</span>
-            </div>
-            <div class="hp-agent-arrow">→</div>
-            <div class="hp-agent hp-agent--highlight">
-              <span class="hp-agent-badge">Core ML</span>
-              <span class="hp-agent-name">NMFMaskingAgent</span>
-              <span class="hp-agent-desc">STFT → NMF <code>n=10</code> → Wiener mask</span>
-            </div>
-            <div class="hp-agent-arrow">→</div>
-            <div class="hp-agent">
-              <span class="hp-agent-name">ReconstructionAgent</span>
-              <span class="hp-agent-desc">Rebuild damaged harmonics</span>
-            </div>
-            <div class="hp-agent-arrow">→</div>
-            <div class="hp-agent">
-              <span class="hp-agent-name">OverlapAgent</span>
-              <span class="hp-agent-desc">Dual-F0 separation</span>
-            </div>
-            <div class="hp-agent-arrow">→</div>
-            <div class="hp-agent">
-              <span class="hp-agent-name">QualityScorerAgent</span>
-              <span class="hp-agent-desc">SNR delta + validity flag</span>
-            </div>
-            <div class="hp-agent-arrow">→</div>
-            <div class="hp-agent">
-              <span class="hp-agent-name">ClusteringAgent</span>
-              <span class="hp-agent-desc">UMAP + K-means → hypotheses</span>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <!-- Footer -->
-      <footer class="hp-footer">
-        <hr class="hp-rule" />
-        <div class="hp-footer-inner">
-          <p>© 2026 Tribal. All rights reserved.</p>
-          <p>Built at <strong>HackSMU</strong> · in partnership with <strong>ElephantVoices</strong></p>
-        </div>
-      </footer>
-
+      <div id="homepage-react-root"></div>
     </div>
 
     <!-- ── App Shell ───────────────────────────────────── -->
