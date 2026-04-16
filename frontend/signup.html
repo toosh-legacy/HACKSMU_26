@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Sign up — Tribal</title>
+  <meta name="description" content="Create a Tribal account." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/src/style.css" />
+</head>
+<body class="auth-body" data-auth-page="signup">
+  <div class="auth-shell">
+    <header class="auth-top">
+      <a href="/" class="auth-back"><span class="auth-back-icon" aria-hidden="true">←</span> Back</a>
+      <a href="/" class="auth-brand">Tribal</a>
+    </header>
+
+    <main class="auth-main">
+      <div class="auth-card">
+        <h1 class="auth-title">Sign up</h1>
+        <p class="auth-lede">Create an account to save preferences and sync runs later.</p>
+
+        <form id="signup-form" class="auth-form" novalidate>
+          <label class="auth-field">
+            <span class="auth-label">Display name <span class="auth-optional">(optional)</span></span>
+            <input type="text" name="name" autocomplete="name" placeholder="Ada" maxlength="80" />
+          </label>
+          <label class="auth-field">
+            <span class="auth-label">Email</span>
+            <input type="email" name="email" autocomplete="email" required placeholder="you@example.com" />
+          </label>
+          <label class="auth-field">
+            <span class="auth-label">Password</span>
+            <input type="password" name="password" autocomplete="new-password" required placeholder="At least 8 characters" minlength="8" />
+          </label>
+          <label class="auth-field">
+            <span class="auth-label">Confirm password</span>
+            <input type="password" name="confirm" autocomplete="new-password" required placeholder="Repeat password" minlength="8" />
+          </label>
+          <button type="submit" class="auth-submit">Create account</button>
+        </form>
+
+        <p class="auth-footer">
+          Already have an account?
+          <a href="/login.html">Log in</a>
+        </p>
+      </div>
+    </main>
+  </div>
+  <script type="module" src="/src/auth-pages.js"></script>
+</body>
+</html>
