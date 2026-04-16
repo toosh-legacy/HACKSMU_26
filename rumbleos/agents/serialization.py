@@ -7,7 +7,18 @@ def tabular_result(result: dict) -> dict:
     for key, value in result.items():
         if isinstance(value, np.ndarray):
             continue
-        if isinstance(value, (list, tuple, dict, set)):
+        if isinstance(value, dict):
+            for sub_key, sub_value in value.items():
+                if isinstance(sub_value, np.ndarray):
+                    continue
+                if isinstance(sub_value, (list, tuple, dict, set)):
+                    continue
+                if isinstance(sub_value, np.generic):
+                    scalar_result[f"{key}_{sub_key}"] = sub_value.item()
+                    continue
+                scalar_result[f"{key}_{sub_key}"] = sub_value
+            continue
+        if isinstance(value, (list, tuple, set)):
             continue
         if isinstance(value, np.generic):
             scalar_result[key] = value.item()

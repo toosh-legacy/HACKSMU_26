@@ -41,17 +41,26 @@ class ReconstructionAgent(BaseAgent):
                     h_bins[n]     = hb
                     h_energies[n] = float(cleaned_mag[hb, :].mean())
 
-            if len(h_energies) >= 2:
+            # Require at least 3 surviving harmonics for a reliable
+            # log-linear decay fit. Fewer than 3 points either overfit
+            # (2 = exact) or don't constrain the slope enough to
+            # distinguish a real harmonic from local noise.
+            if len(h_energies) >= 3:
                 ns     = np.array(sorted(h_energies.keys()), dtype=float)
                 Es     = np.array([h_energies[int(n)] for n in ns])
                 log_Es = np.log(Es + 1e-10)
-                trend  = np.polyfit(ns, log_Es, 1)  # exponential decay fit
+                trend  = np.polyfit(ns, log_Es, 1)
 
                 for n, hb in h_bins.items():
                     expected = np.exp(np.polyval(trend, n))
                     actual   = h_energies[n]
 
-                    if actual < expected * 0.3:  # band is damaged (< 30% of expected)
+                    # Stricter damage threshold (< 20% expected) and
+                    # conservative 30/70 blend: we mostly trust the
+                    # Wiener-masked magnitude and only nudge it toward
+                    # the expected value, rather than overwriting with a
+                    # speculatively reconstructed harmonic.
+                    if actual < expected * 0.20:
                         neighbors = [k for k, e in h_energies.items()
                                      if k != n and e > expected * 0.5]
                         if neighbors:
@@ -59,14 +68,22 @@ class ReconstructionAgent(BaseAgent):
                             nbb   = h_bins[nb]
                             scale = expected / (h_energies[nb] + 1e-10)
                             recon = cleaned_mag[nbb[:len(hb)], :] * scale
-                            # Blend: 70% reconstructed, 30% original
                             cleaned_mag[hb[:len(recon)], :] = (
-                                0.7 * recon +
-                                0.3 * cleaned_mag[hb[:len(recon)], :]
+                                0.3 * recon +
+                                0.7 * cleaned_mag[hb[:len(recon)], :]
                             )
 
         # Reconstruct audio via ISTFT
         cleaned_complex = cleaned_mag * np.exp(1j * phase)
         cleaned_audio   = librosa.istft(cleaned_complex,
                                         hop_length=HOP_LENGTH, win_length=N_FFT)
+
+        # Ensure output is exactly the same length as input segment
+        # ISTFT frame rounding can add/remove a few samples
+        target_len = len(msg['segment'])
+        if len(cleaned_audio) < target_len:
+            cleaned_audio = np.pad(cleaned_audio, (0, target_len - len(cleaned_audio)))
+        else:
+            cleaned_audio = cleaned_audio[:target_len]
+
         return {**msg, "cleaned": cleaned_audio}

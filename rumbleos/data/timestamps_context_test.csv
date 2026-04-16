@@ -1,0 +1,9 @@
+filename,start_time,end_time,call_type,noise_type,elephant_id,age_class,sex,location,family_group,clan,relationship_group,breeding_context,breeding_target,camera_id,recorder_id
+04-040920-02_vehicle_1.wav,30.6492,33.41613926,rumble,car,E001,adult_female,female,north_waterhole,FAM_A,red_clan,matriarch_line,estrus,male,cam_01,dict_01
+04-040920-02_vehicle_1.wav,32.0326,36.39585037,rumble,car,E001,adult_female,female,north_waterhole,FAM_A,red_clan,matriarch_line,estrus,male,cam_01,dict_01
+04-040920-02_vehicle_2.wav,25.7693,30.23897111,rumble,car,E002,juvenile_male,male,north_waterhole,FAM_A,red_clan,sibling_group,none,none,cam_01,dict_01
+061220-24_airplane_01.wav,23.8035,25.39981111,rumble,airplane,E003,adult_female,female,south_crossing,FAM_B,blue_clan,matriarch_line,calf_care,none,cam_04,dict_02
+090224-09_generator_01.wav,50.5826,53.45596,rumble,generator_60hz,E004,adult_male,male,south_crossing,BULL_1,bull_clan,bachelor_group,musth,female,cam_04,dict_03
+1989-06_airplane_01.wav,15.1885,21.89300667,rumble,airplane,E003,adult_female,female,south_crossing,FAM_B,blue_clan,matriarch_line,calf_care,none,cam_04,dict_02
+1989-08_airplane_01.wav,18.0101,20.40456667,rumble,airplane,E005,subadult_female,female,east_ridge,FAM_C,green_clan,peer_group,none,none,cam_07,dict_04
+2000-23_background_noise_1.wav,8.5713,12.93455037,rumble,background,E005,subadult_female,female,east_ridge,FAM_C,green_clan,peer_group,none,none,cam_07,dict_04

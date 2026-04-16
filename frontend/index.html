@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Tribal</title>
+  <meta name="description" content="Tribal removes mechanical noise from elephant infrasound recordings and discovers communication patterns across herds." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Lora:ital,wght@0,400;0,500;1,400;1,500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/src/style.css" />
+</head>
+<body>
+  <div id="app">
+
+    <!-- ── Landing ─────────────────────────────────────── -->
+    <section id="landing" class="landing-page">
+      <div class="landing-nav">
+        <div class="logo" onclick="window.location.reload()" style="cursor: pointer; z-index: 10; font-family: var(--font-display); font-size: 1.6rem; letter-spacing: 0.04em;">
+          Tribal
+        </div>
+        <div class="auth-buttons">
+          <button class="auth-link">Log in</button>
+          <button class="auth-btn">Sign up</button>
+        </div>
+      </div>
+      <!-- Aurora waves — full-page background -->
+      <div id="aurora-banner" style="position:absolute;inset:0;width:100%;height:100%;z-index:0;"></div>
+
+      <div class="hero">
+        <h1>HEAR WHAT THE<br/><span>EARTH HIDES.</span></h1>
+        <p>A multi-agent pipeline built for ElephantVoices — stripping mechanical noise from field recordings so decades of elephant communication research doesn't go to waste.</p>
+        <button class="process-btn" id="process-btn">
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+          Process Recordings
+        </button>
+      </div>
+
+    </section>
+
+    <!-- ── Homepage Content ──────────────────────────────────── -->
+    <div id="homepage-content">
+
+      <!-- Research context -->
+      <section class="hp-section" id="hp-research">
+        <hr class="hp-rule" />
+        <div class="hp-section-inner">
+          <div class="hp-prose-col">
+            <h2 class="hp-section-heading">Research context</h2>
+            <blockquote class="hp-quote">
+              <p>"When an elephant rumble overlaps in both time and frequency with noise sources, it becomes difficult or impossible to measure the acoustic properties of the call without influence from the noise source, rendering these recordings useless for analysis."</p>
+              <footer>— Dr. Mickey Pardo, ElephantVoices</footer>
+            </blockquote>
+            <p class="hp-body">ElephantVoices has been recording and cataloguing elephant calls since the 1980s. Decades of field work in Kenya and Mozambique have produced thousands of recordings — many of which are partially or entirely unusable because of mechanical noise that arrived in frame. Airplanes, generators, and passing vehicles overlap the infrasound band where elephants communicate.</p>
+            <p class="hp-body">Tribal processes those recordings. It identifies the noise type, separates the signal from the interference, and returns a cleaned WAV alongside acoustic measurements that can actually be trusted.</p>
+          </div>
+          <div class="hp-cards-col">
+            <div class="hp-field-cards">
+              <div class="hp-field-card">
+                <span class="hp-field-label">Amboseli, Kenya</span>
+                <p class="hp-field-desc">Long-term behavioral study — core of ElephantVoices' research archive.</p>
+              </div>
+              <div class="hp-field-card">
+                <span class="hp-field-label">Maasai Mara, Kenya</span>
+                <p class="hp-field-desc">Cross-population analysis — comparing call structure across social groups.</p>
+              </div>
+              <div class="hp-field-card">
+                <span class="hp-field-label">Gorongosa, Mozambique</span>
+                <p class="hp-field-desc">Post-conflict recovery — examining how trauma affects communication and social bonds.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="hp-fact-strip">
+          <div class="hp-fact">
+            <span class="hp-fact-label">Fundamental frequency</span>
+            <span class="hp-fact-value"><code>10–20 Hz</code></span>
+            <span class="hp-fact-note">Below human hearing — only visible in spectrogram</span>
+          </div>
+          <div class="hp-fact">
+            <span class="hp-fact-label">Harmonic ceiling</span>
+            <span class="hp-fact-value"><code>up to 1,000 Hz</code></span>
+            <span class="hp-fact-note">Higher harmonics attenuate with distance</span>
+          </div>
+          <div class="hp-fact">
+            <span class="hp-fact-label">What you actually hear</span>
+            <span class="hp-fact-value"><code>upper harmonics only</code></span>
+            <span class="hp-fact-note">Lowest frequencies lost on standard speakers</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- Why it's hard -->
+      <section class="hp-section" id="hp-why">
+        <hr class="hp-rule" />
+        <div class="hp-section-inner hp-section-inner--full">
+          <h2 class="hp-section-heading">Why it's hard</h2>
+          <div class="hp-card-grid hp-card-grid--4">
+            <div class="hp-card">
+              <h3 class="hp-card-title">Frequency overlap</h3>
+              <p class="hp-card-body">Generator harmonics and airplane noise land directly in the 10–1,000 Hz band where elephant calls live. Simple high-pass filters remove the signal along with the noise.</p>
+            </div>
+            <div class="hp-card">
+              <h3 class="hp-card-title">No clean reference</h3>
+              <p class="hp-card-body">Field recordings rarely include a noise-only segment captured in the same conditions. Standard spectral subtraction requires one. NMF-based separation doesn't.</p>
+            </div>
+            <div class="hp-card">
+              <h3 class="hp-card-title">Simultaneous callers</h3>
+              <p class="hp-card-body">Multiple elephants often rumble at the same time. Their calls overlap in frequency, making it hard to isolate individual F0 tracks without a second decomposition pass.</p>
+            </div>
+            <div class="hp-card">
+              <h3 class="hp-card-title">Scale of the archive</h3>
+              <p class="hp-card-body">Decades of recordings — too many to clean by hand. Any solution has to run unattended across hundreds of files and flag its own uncertainty.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Who it's for -->
+      <section class="hp-section" id="hp-who">
+        <hr class="hp-rule" />
+        <div class="hp-section-inner hp-section-inner--full">
+          <h2 class="hp-section-heading">Who it's for</h2>
+          <div class="hp-card-grid hp-card-grid--3">
+            <div class="hp-card">
+              <h3 class="hp-card-title">Field biologists</h3>
+              <p class="hp-card-body">Drop a WAV file and get a cleaned version back with acoustic measurements. No signal processing expertise required.</p>
+            </div>
+            <div class="hp-card">
+              <h3 class="hp-card-title">Acoustic researchers</h3>
+              <p class="hp-card-body">Access per-call F0 estimates, harmonic completeness scores, and SNR deltas. Cluster views surface recurring call patterns across the dataset.</p>
+            </div>
+            <div class="hp-card">
+              <h3 class="hp-card-title">Conservation teams</h3>
+              <p class="hp-card-body">Behavioral hypotheses generated from the cluster structure give non-specialists a starting point for interpreting what the data might mean.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- What you get -->
+      <section class="hp-section" id="hp-what">
+        <hr class="hp-rule" />
+        <div class="hp-section-inner hp-section-inner--full">
+          <h2 class="hp-section-heading">What you get</h2>
+          <div class="hp-card-grid hp-card-grid--4">
+            <div class="hp-card">
+              <h3 class="hp-card-title">Cleaned WAV files</h3>
+              <p class="hp-card-body">Noise removed via NMF soft-mask. Original dynamic range preserved. Harmonic structure reconstructed where the noise obscured it.</p>
+            </div>
+            <div class="hp-card">
+              <h3 class="hp-card-title">Separated callers</h3>
+              <p class="hp-card-body">Dual-F0 detection identifies simultaneous calls. Each caller gets their own output track when the algorithm finds two distinct fundamental frequencies.</p>
+            </div>
+            <div class="hp-card">
+              <h3 class="hp-card-title">Behavioural clusters</h3>
+              <p class="hp-card-body">UMAP projection followed by K-means groups calls by acoustic similarity. Each cluster gets a label, a summary, and a similarity graph across herds.</p>
+            </div>
+            <div class="hp-card">
+              <h3 class="hp-card-title">AI hypotheses</h3>
+              <p class="hp-card-body">Gemini reads the cluster summaries and returns plain-language hypotheses about what each group of calls might represent behaviourally.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Pipeline strip -->
+      <section class="hp-section" id="hp-pipeline">
+        <hr class="hp-rule" />
+        <div class="hp-section-inner hp-section-inner--full">
+          <h2 class="hp-section-heading">Pipeline</h2>
+          <div class="hp-pipeline-strip">
+            <div class="hp-agent">
+              <span class="hp-agent-name">PreprocessAgent</span>
+              <span class="hp-agent-desc">Resample → bandpass <code>10–1000 Hz</code></span>
+            </div>
+            <div class="hp-agent-arrow">→</div>
+            <div class="hp-agent">
+              <span class="hp-agent-name">FingerprintAgent</span>
+              <span class="hp-agent-desc">Classify noise type</span>
+            </div>
+            <div class="hp-agent-arrow">→</div>
+            <div class="hp-agent hp-agent--highlight">
+              <span class="hp-agent-badge">Core ML</span>
+              <span class="hp-agent-name">NMFMaskingAgent</span>
+              <span class="hp-agent-desc">STFT → NMF <code>n=10</code> → Wiener mask</span>
+            </div>
+            <div class="hp-agent-arrow">→</div>
+            <div class="hp-agent">
+              <span class="hp-agent-name">ReconstructionAgent</span>
+              <span class="hp-agent-desc">Rebuild damaged harmonics</span>
+            </div>
+            <div class="hp-agent-arrow">→</div>
+            <div class="hp-agent">
+              <span class="hp-agent-name">OverlapAgent</span>
+              <span class="hp-agent-desc">Dual-F0 separation</span>
+            </div>
+            <div class="hp-agent-arrow">→</div>
+            <div class="hp-agent">
+              <span class="hp-agent-name">QualityScorerAgent</span>
+              <span class="hp-agent-desc">SNR delta + validity flag</span>
+            </div>
+            <div class="hp-agent-arrow">→</div>
+            <div class="hp-agent">
+              <span class="hp-agent-name">ClusteringAgent</span>
+              <span class="hp-agent-desc">UMAP + K-means → hypotheses</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Footer -->
+      <footer class="hp-footer">
+        <hr class="hp-rule" />
+        <div class="hp-footer-inner">
+          <p>© 2026 Tribal. All rights reserved.</p>
+          <p>Built at <strong>HackSMU</strong> · in partnership with <strong>ElephantVoices</strong></p>
+        </div>
+      </footer>
+
+    </div>
+
+    <!-- ── App Shell ───────────────────────────────────── -->
+    <div class="app-content" id="app-content">
+      <header id="main-header">
+        <div class="header-left">
+          <a href="#" class="logo" id="app-home">
+            <h1>Tribal</h1>
+          </a>
+        </div>
+        <div class="header-right">
+          <button class="avatar-btn" title="Profile">J</button>
+        </div>
+      </header>
+
+      <!-- Bottom floating nav -->
+      <div id="app-nav-root"></div>
+
+      <section id="section-dashboard" class="section active">
+        <div class="section-header">
+          <h2 class="section-title">Dashboard</h2>
+          <p class="section-desc">Pipeline run overview — noise removed, calls analysed, clusters found.</p>
+        </div>
+        <div class="stats-grid" id="stats-grid"></div>
+        <div class="dashboard-grid">
+          <div class="card" id="noise-distribution-card">
+            <h2 class="card-title">Noise Type Distribution</h2>
+            <div class="chart-container" id="noise-chart"></div>
+          </div>
+          <div class="card" id="cluster-overview-card">
+            <h2 class="card-title">Cluster Overview</h2>
+            <div class="cluster-pills" id="cluster-pills"></div>
+          </div>
+        </div>
+      </section>
+
+      <section id="section-explorer" class="section">
+        <div class="section-header">
+          <h2 class="section-title">Explorer</h2>
+          <p class="section-desc">Browse every processed call — filter by noise type or cluster, inspect spectrograms and audio.</p>
+        </div>
+        <div class="explorer-layout">
+          <aside class="call-list-panel" id="call-list-panel">
+            <div class="search-box">
+              <input type="text" id="call-search" placeholder="Search calls…" />
+            </div>
+            <div class="filter-row">
+              <select id="noise-filter"><option value="">All Noise</option></select>
+              <select id="cluster-filter"><option value="">All Clusters</option></select>
+            </div>
+            <div class="call-list" id="call-list"></div>
+          </aside>
+          <main class="call-detail" id="call-detail">
+            <div class="empty-state">
+              <span class="empty-icon">📡</span>
+              <p>Select a call to view details</p>
+            </div>
+          </main>
+        </div>
+      </section>
+
+      <section id="section-clusters" class="section">
+        <div class="section-header">
+          <h2 class="section-title">Clusters</h2>
+          <p class="section-desc">UMAP + K-means behavioural groupings — each cluster represents a distinct communication pattern.</p>
+        </div>
+        <div class="clusters-grid" id="clusters-grid"></div>
+
+        <div id="ai-hypotheses-panel" style="display:none;">
+          <div class="hypotheses-header">
+            <span class="hypotheses-badge">Gemini AI</span>
+            <h3 class="hypotheses-title">Behavioural Hypotheses</h3>
+          </div>
+          <div class="hypotheses-body" id="ai-hypotheses-text"></div>
+        </div>
+      </section>
+
+      <section id="section-network" class="section" style="padding: 0; background: var(--charcoal); position: relative; overflow: hidden;">
+        <!-- React mounts here. position:absolute fills the flex-sized section without needing height:100% inheritance. -->
+        <div id="react-network-root" style="position: absolute; top: 0; left: 0; right: 0; bottom: 0;"></div>
+      </section>
+
+      <section id="section-upload" class="section">
+        <div class="section-header">
+          <h2 class="section-title">Upload</h2>
+          <p class="section-desc">Drop a .wav field recording — the pipeline runs automatically and all views refresh when done.</p>
+        </div>
+
+        <!-- Drop zone -->
+        <div id="upload-dropzone" class="upload-dropzone">
+          <input type="file" id="upload-file-input" accept=".wav" style="display:none" />
+          <div class="upload-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+          </div>
+          <p class="upload-hint">Drop a <strong>.wav</strong> file here, or <span class="upload-browse">click to browse</span></p>
+          <p class="upload-sub">File is saved to the recordings directory and the full pipeline runs.</p>
+        </div>
+
+        <!-- Status card -->
+        <div id="upload-status-card" class="upload-status-card" style="display:none">
+          <div class="upload-status-header">
+            <span id="upload-status-badge" class="upload-status-badge">Idle</span>
+            <span id="upload-filename-label" class="upload-filename-label"></span>
+          </div>
+          <div class="upload-progress-track">
+            <div id="upload-progress-bar" class="upload-progress-bar" style="width:0%"></div>
+          </div>
+          <div id="upload-log" class="upload-log"></div>
+        </div>
+      </section>
+    </div>
+  </div>
+
+  <script type="module" src="/src/main.js"></script>
+</body>
+</html>
