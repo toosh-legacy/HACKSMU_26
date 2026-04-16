@@ -55,6 +55,7 @@ async function loadData() {
 // ── Landing → App ────────────────────────────────────────────────────
 document.getElementById('process-btn')?.addEventListener('click', () => {
   document.getElementById('landing').style.display = 'none';
+  document.getElementById('homepage-content').style.display = 'none';
   document.getElementById('app-content').classList.add('visible');
 });
 
@@ -62,6 +63,7 @@ document.getElementById('app-home')?.addEventListener('click', (e) => {
   e.preventDefault();
   document.getElementById('app-content').classList.remove('visible');
   document.getElementById('landing').style.display = 'flex';
+  document.getElementById('homepage-content').style.display = 'block';
   window.history.replaceState(null, '', ' '); // clear hash to reset router visually
 });
 
