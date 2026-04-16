@@ -10,6 +10,7 @@ Usage:
 """
 
 import json
+import mimetypes
 import os
 import struct
 import subprocess
@@ -21,10 +22,11 @@ import base64
 import csv
 
 # ── Paths ─────────────────────────────────────────────────────────────────────
-AUDIO_DIR = Path(r"C:\Projects\HackSMU\HACKSMU_26\recordings\2026)-20260411T194946Z-3-001\Audio Files (04-10-2026)")
-CSV_PATH  = Path(__file__).parent / "data" / "timestamps.csv"
-MAIN_PY   = Path(__file__).parent / "main.py"
-PORT      = 5050
+_BASE     = Path(__file__).parent
+AUDIO_DIR = Path(os.environ.get("AUDIO_DIR", str(_BASE / "data" / "recordings")))
+CSV_PATH  = Path(os.environ.get("CSV_PATH",  str(_BASE / "data" / "timestamps.csv")))
+MAIN_PY   = _BASE / "main.py"
+PORT      = int(os.environ.get("PORT", 5050))
 
 # ── Pipeline state ─────────────────────────────────────────────────────────────
 _state_lock = threading.Lock()
@@ -178,6 +180,27 @@ class Handler(BaseHTTPRequestHandler):
             with _state_lock:
                 snapshot = dict(state)
             return self._send_json(200, snapshot)
+
+        # Serve result files: /results/<filename>
+        if path.startswith("/results/"):
+            rel = path[len("/results/"):]
+            results_dir = _BASE / "results"
+            target = (results_dir / rel).resolve()
+            # Prevent path traversal
+            if results_dir.resolve() not in target.parents and target != results_dir.resolve():
+                return self._send_json(403, {"error": "forbidden"})
+            if target.is_file():
+                mime, _ = mimetypes.guess_type(str(target))
+                body = target.read_bytes()
+                self.send_response(200)
+                self.send_header("Content-Type", mime or "application/octet-stream")
+                self.send_header("Content-Length", str(len(body)))
+                self.send_header("Access-Control-Allow-Origin", "*")
+                self.end_headers()
+                self.wfile.write(body)
+                return
+            return self._send_json(404, {"error": "file not found"})
+
         self._send_json(404, {"error": f"not found: {self.path}"})
 
     def do_POST(self):
@@ -229,7 +252,7 @@ class Handler(BaseHTTPRequestHandler):
 
 # ── Entry point ───────────────────────────────────────────────────────────────
 if __name__ == "__main__":
-    server = HTTPServer(("localhost", PORT), Handler)
+    server = HTTPServer(("0.0.0.0", PORT), Handler)
     print(f"RumbleOS upload server listening on http://localhost:{PORT}")
     try:
         server.serve_forever()
