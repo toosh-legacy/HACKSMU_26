@@ -24,7 +24,7 @@ Elephants communicate through infrasound - low-frequency rumbles (10–35 Hz fun
 harmonics to ~1000 Hz) inaudible to humans. Field recordings are almost always contaminated
 by airplane flyovers, vehicle engines, or generator hum at overlapping frequencies.
 
-Tribal takes raw, noisy WAV files and:
+Tribal takes raw, noise WAV files and:
 
 1. Classifies the noise type (airplane, vehicle, generator variant)
 2. Spectral subtraction of the stationary noise floor before NMF
