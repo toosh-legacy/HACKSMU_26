@@ -2,6 +2,7 @@ import { mountNetworkGraph } from './mountNetworkGraph.jsx';
 import { mountAuroraWaves } from './mountAuroraWaves.jsx';
 import { mountNavBar } from './mountNavBar.jsx';
 
+
 // ── Data ─────────────────────────────────────────────────────────────
 let allCalls = [];
 let clusterSummaries = {};

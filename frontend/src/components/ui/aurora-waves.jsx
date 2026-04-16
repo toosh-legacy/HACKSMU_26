@@ -26,7 +26,8 @@ vec3 palette(float t) {
     vec3 sage   = vec3(0.478, 0.620, 0.494); // #7A9E7E
     float s = 0.5 + 0.5 * sin(t);
     float s2 = 0.5 + 0.5 * sin(t + 2.094);
-    return mix(mix(sienna, yellow, s), sage, s2 * 0.4);
+    // bias heavily toward yellow, reduce sage influence
+    return mix(mix(sienna, yellow, clamp(s + 0.4, 0.0, 1.0)), sage, s2 * 0.15);
 }
 
 float wave(vec2 uv, float freq, float phase) {
@@ -53,9 +54,9 @@ void main() {
 
     vec3 col = palette(waveLine + y + uTime * 0.15);
 
-    // Dark charcoal bg: #2C2C2C
-    vec3 bg = vec3(0.173, 0.173, 0.173);
-    col = mix(bg, col, g * 1.6);
+    // Light linen bg: #FAF0E6
+    vec3 bg = vec3(0.980, 0.941, 0.902);
+    col = mix(bg, col, g * 1.2);
 
     gl_FragColor = vec4(col, 1.0);
 }
