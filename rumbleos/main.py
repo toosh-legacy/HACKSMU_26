@@ -641,7 +641,7 @@ def launch_parallel(csv_path, audio_dir, output_dir,
 if __name__ == "__main__":
     # ── CONFIGURE THESE ──────────────────────────────────────────────
     CSV_PATH       = os.environ.get("CSV_PATH",   "data/timestamps.csv")
-    AUDIO_DIR      = "../recordings/2026)-20260411T194946Z-3-001/Audio Files (04-10-2026)"
+    AUDIO_DIR      = os.environ.get("AUDIO_DIR",  "data/recordings")
     OUTPUT_DIR     = os.environ.get("OUTPUT_DIR", "results")
     GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
     SENSECAP_PORT  = os.environ.get("SENSECAP_PORT", "/dev/ttyUSB0")

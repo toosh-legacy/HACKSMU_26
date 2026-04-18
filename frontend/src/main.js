@@ -4,6 +4,33 @@ import { mountNavBar } from './mountNavBar.jsx';
 import { mountHomepage } from './mountHomepage.jsx';
 
 const SESSION_KEY = 'tribal_session';
+const DEFAULT_BACKEND_ORIGIN = 'https://hacksmu-26.onrender.com';
+const BACKEND_ORIGIN = (
+  import.meta.env.VITE_BACKEND_ORIGIN ||
+  (window.location.hostname === 'localhost' ? '' : DEFAULT_BACKEND_ORIGIN)
+).replace(/\/$/, '');
+
+function apiUrl(path) {
+  return `${BACKEND_ORIGIN}/api${path.startsWith('/') ? path : `/${path}`}`;
+}
+
+function resultsUrl(path) {
+  return `${BACKEND_ORIGIN}/results${path.startsWith('/') ? path : `/${path}`}`;
+}
+
+async function requestJson(url, options) {
+  const res = await fetch(url, options);
+  const text = await res.text();
+  if (!res.ok) {
+    throw new Error(text || `${res.status} ${res.statusText}`);
+  }
+  if (!text) return {};
+  try {
+    return JSON.parse(text);
+  } catch {
+    throw new Error(text.slice(0, 160));
+  }
+}
 
 function applySessionFromAuth() {
   try {
@@ -60,11 +87,11 @@ async function loadCSV(url) {
 async function loadData() {
   try {
     const [calls, clusters, edgesRaw, hypothesesText, kb] = await Promise.all([
-      loadCSV('/results/batch_results_clustered.csv').catch(() => loadCSV('/results/batch_results.csv')),
-      fetch('/results/cluster_summaries.json').then(r => r.json()).catch(() => ({})),
-      loadCSV('/results/tribe_edges.csv').catch(() => []),
-      fetch('/results/ai_hypotheses.txt').then(r => r.ok ? r.text() : '').catch(() => ''),
-      fetch('/results/knowledge_base.json').then(r => r.ok ? r.json() : null).catch(() => null),
+      loadCSV(resultsUrl('/batch_results_clustered.csv')).catch(() => loadCSV(resultsUrl('/batch_results.csv'))),
+      requestJson(resultsUrl('/cluster_summaries.json')).catch(() => ({})),
+      loadCSV(resultsUrl('/tribe_edges.csv')).catch(() => []),
+      fetch(resultsUrl('/ai_hypotheses.txt')).then(r => r.ok ? r.text() : '').catch(() => ''),
+      requestJson(resultsUrl('/knowledge_base.json')).catch(() => null),
     ]);
     allCalls = calls;
     clusterSummaries = clusters;
@@ -271,16 +298,16 @@ window.selectCall = function(callId) {
       </div>
     </div>
     <div class="detail-spectrogram">
-      <img src="/results/${c.call_id}_comparison.png" alt="Spectrogram" onerror="this.parentElement.innerHTML='<p style=color:var(--text-muted)>No spectrogram available</p>'" />
+      <img src="${resultsUrl(`/${c.call_id}_comparison.png`)}" alt="Spectrogram" onerror="this.parentElement.innerHTML='<p style=color:var(--text-muted)>No spectrogram available</p>'" />
     </div>
     <div class="detail-audio">
       <div class="detail-audio-label">Cleaned Audio</div>
-      <audio controls preload="none" src="/results/${c.call_id.replace(/_c\d+$/, '')}_clean.wav"></audio>
+      <audio controls preload="none" src="${resultsUrl(`/${c.call_id.replace(/_c\d+$/, '')}_clean.wav`)}"></audio>
     </div>
     ${c.multi_elephant === 'True' ? `
     <div class="detail-audio">
       <div class="detail-audio-label">Elephant B (separated)</div>
-      <audio controls preload="none" src="/results/${c.call_id.replace(/_c\d+$/, '')}_clean_b.wav"></audio>
+      <audio controls preload="none" src="${resultsUrl(`/${c.call_id.replace(/_c\d+$/, '')}_clean_b.wav`)}"></audio>
     </div>` : ''}
   `;
 };
@@ -430,8 +457,7 @@ function initUploadSection() {
   });
 
   // Resume polling if pipeline is already running from a previous upload
-  fetch('/api/status')
-    .then(r => r.json())
+  requestJson(apiUrl('/status'))
     .then(s => { if (s.status === 'running') startPolling(); })
     .catch(() => {});
 }
@@ -447,12 +473,11 @@ function submitFile(file) {
   const reader = new FileReader();
   reader.onload = () => {
     const base64 = reader.result.split(',')[1];
-    fetch('/api/upload', {
+    requestJson(apiUrl('/upload'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ filename: file.name, data: base64 }),
     })
-      .then(r => r.json())
       .then(data => {
         if (data.error) showUploadStatus('error', data.error);
         else startPolling();
@@ -482,8 +507,7 @@ function startPolling() {
 let _lastLogCount = 0;
 
 function pollStatus() {
-  fetch('/api/status')
-    .then(r => r.json())
+  requestJson(apiUrl('/status'))
     .then(data => {
       const badge = document.getElementById('upload-status-badge');
       const bar = document.getElementById('upload-progress-bar');

@@ -510,11 +510,10 @@ Create `.env` in the project root:
 
 ```
 GEMINI_API_KEY=your_key_here
+AUDIO_DIR=data/recordings
 CSV_PATH=data/timestamps.csv
 OUTPUT_DIR=results
 ```
-
-`AUDIO_DIR` is set directly in `main.py` (path to your WAV files).
 
 ---
 
@@ -549,6 +548,35 @@ python server.py    # http://localhost:5050
 cd frontend
 npm run dev        # http://localhost:5174
 ```
+
+---
+
+## Deploying
+
+### Backend on Render
+
+Use the included `render.yaml`, or create a Python Web Service with:
+
+```bash
+Build Command: pip install -r rumbleos/requirements.txt
+Start Command: cd rumbleos && python server.py
+Health Check Path: /api/status
+```
+
+Set these environment variables on Render:
+
+```bash
+AUDIO_DIR=data/recordings
+CSV_PATH=data/timestamps.csv
+OUTPUT_DIR=results
+GEMINI_API_KEY=your_key_here   # optional
+```
+
+### Frontend on Vercel
+
+Deploy the `frontend/` directory as a Vite app, then replace `YOUR_RENDER_URL`
+in `frontend/vercel.json` with your Render service URL so `/api/*` and
+`/results/*` proxy to the backend.
 
 ### Gemini hypotheses (standalone)
 
