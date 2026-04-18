@@ -1,0 +1,17 @@
+**Cluster Behaviors**
+C0: Long-distance contact call — lowest F0 (15.2 Hz) + richest harmonics (16.8) signals large-bodied adult broadcasting to dispersed herd
+C1: Greeting or reassurance rumble — mid F0 (23.1 Hz), longest duration (4.0 s), sustained harmonic content typical of family reunion calls
+C2: Reproductive advertisement — highest mean duration (5.51 s) matches musth rumbles or estrus calls that demand prolonged broadcast
+C3: Alarm or high-arousal call — highest F0 (27.7 Hz), fewest harmonics (5.6), short (3.2 s), consistent with open-mouth stress vocalization
+C4: Close-range social interaction — highest SNR (14.1 dB) indicates near-recorder caller; moderate harmonics suggest calm sub-adult contact
+C5: "Let's go" movement-initiation call — short (3.08 s), mid-high F0 (26.4 Hz), repeated brief calls seen during herd departure
+C6: Routine herd coordination — largest cluster (34 calls), F0 ~19.5 Hz typical of adult female matriarch maintaining group cohesion
+
+**Likely Same Individual**
+C0 + C6 — both low F0 (15–20 Hz), high harmonics; likely one large adult recorded across sessions
+C3 + C4 + C5 — F0 range 26–28 Hz (0.5 Hz spread), probable same sub-adult in different arousal states
+
+**Top 3 Hypotheses**
+1. C2's 5.51 s mean duration identifies reproductive-context calls — cross-referencing call IDs against estrus/musth metadata should yield ≥60% match.
+2. C3, C4, C5 originate from one individual: F0 variance across all three clusters is <1.5 Hz, within known within-individual pitch range.
+3. C0 encodes longer propagation distances than C6 — its lower SNR (6.4 vs 9.8 dB) and steeper harmonic roll-off predict greater source-to-recorder distance.
