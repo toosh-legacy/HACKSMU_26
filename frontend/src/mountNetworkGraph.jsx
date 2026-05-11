@@ -8,9 +8,9 @@ class ErrorBoundary extends React.Component {
   render() {
     if (this.state.hasError) {
       return (
-        <div style={{ padding: '20px', color: 'red', fontFamily: 'monospace', whiteSpace: 'pre-wrap' }}>
-          <h2>React Render Crash:</h2>
-          {this.state.error?.stack || this.state.error?.message || 'Unknown error'}
+        <div style={{ padding: '20px', color: '#ef4444', fontFamily: 'monospace', whiteSpace: 'pre-wrap' }}>
+          <h2>Graph Render Error:</h2>
+          <pre style={{ fontSize: '0.75rem' }}>{this.state.error?.stack || this.state.error?.message || 'Unknown error'}</pre>
         </div>
       );
     }
@@ -18,34 +18,34 @@ class ErrorBoundary extends React.Component {
   }
 }
 
-function GeometryConstraint({ children }) {
-  const [ready, setReady] = React.useState(false);
-  const ref = React.useRef(null);
-  React.useEffect(() => {
-    const checkDimensions = () => {
-      if (ref.current && ref.current.clientWidth > 0 && ref.current.clientHeight > 0) {
-        setReady(true);
-      } else {
-        requestAnimationFrame(checkDimensions);
-      }
-    };
-    checkDimensions();
-  }, []);
-  return <div ref={ref} style={{ width: '100%', height: '100%', position: 'relative' }}>{ready ? children : null}</div>;
-}
-
 let _graphRef = null;
+let _sigmaResizeFn = null;
 
 window.focusNetworkCluster = (clusterId) => {
   if (_graphRef?.current) _graphRef.current.focusNode(`cluster_${clusterId}`);
 };
 
+// Called from main.js after the network section becomes visible.
+window.resizeNetworkGraph = () => {
+  if (_sigmaResizeFn) _sigmaResizeFn();
+};
+
 function NetworkGraphWrapper({ graphData, communityMemberships }) {
   const ref = useRef(null);
+
   useEffect(() => {
     _graphRef = ref;
     return () => { _graphRef = null; };
   }, []);
+
+  // Expose sigma resize so the section-visibility handler can trigger it.
+  useEffect(() => {
+    _sigmaResizeFn = () => {
+      if (ref.current?.resizeSigma) ref.current.resizeSigma();
+    };
+    return () => { _sigmaResizeFn = null; };
+  }, []);
+
   return (
     <NetworkGraph
       ref={ref}
@@ -63,10 +63,12 @@ export function mountNetworkGraph(containerId, tribeEdges, allCalls, clusterSumm
   if (!container) return;
   if (!rootInstance) rootInstance = createRoot(container);
 
-  // cluster lookup: call_id → cluster string
+  // cluster lookup: call_id → cluster string (normalize '4.0' → '4' to match JSON keys)
   const callCluster = new Map();
   allCalls.forEach(c => {
-    if (c.cluster !== undefined && c.cluster !== '') callCluster.set(c.call_id, String(c.cluster));
+    if (c.cluster !== undefined && c.cluster !== '') {
+      callCluster.set(c.call_id, String(parseInt(c.cluster, 10)));
+    }
   });
 
   // ── Tribe edges filtered by threshold ───────────────────────────
@@ -80,6 +82,15 @@ export function mountNetworkGraph(containerId, tribeEdges, allCalls, clusterSumm
       activeNodeIds.add(c.call_id);
     }
   });
+
+  if (activeNodeIds.size === 0) {
+    rootInstance.render(
+      <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--linen)', fontFamily: 'var(--font-mono)' }}>
+        <p style={{ opacity: 0.5 }}>No data — run the pipeline first.</p>
+      </div>
+    );
+    return;
+  }
 
   // ── Degree for node sizing ───────────────────────────────────────
   const nodeDegree = new Map();
@@ -126,7 +137,7 @@ export function mountNetworkGraph(containerId, tribeEdges, allCalls, clusterSumm
     communityMemberships.set(n.id, n.properties.clusterId);
   });
 
-  // ── SIMILAR_TO edges (tribe) ─────────────────────────────────────
+  // ── SIMILAR_TO edges (tribe similarity) ─────────────────────────
   const similarEdges = filteredEdges.map((e, idx) => ({
     id: `e_${idx}`,
     sourceId: e.source,
@@ -168,27 +179,12 @@ export function mountNetworkGraph(containerId, tribeEdges, allCalls, clusterSumm
 
   const relationships = [...similarEdges, ...belongsEdges, ...associatedEdges];
 
-  if (nodes.length === 0) {
-    rootInstance.render(
-      <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--linen)', fontFamily: 'var(--font-mono)' }}>
-        <p style={{ opacity: 0.5 }}>No data — run the pipeline first.</p>
-      </div>
-    );
-    return;
-  }
-
-  try {
-    rootInstance.render(
-      <ErrorBoundary>
-        <GeometryConstraint>
-          <NetworkGraphWrapper
-            graphData={{ nodes, relationships, nodeCount: nodes.length, relationshipCount: relationships.length }}
-            communityMemberships={communityMemberships}
-          />
-        </GeometryConstraint>
-      </ErrorBoundary>
-    );
-  } catch (err) {
-    container.innerHTML = `<div style="padding:20px;color:red;font-family:monospace"><h1>Crash:</h1>${err.stack || err.message}</div>`;
-  }
+  rootInstance.render(
+    <ErrorBoundary>
+      <NetworkGraphWrapper
+        graphData={{ nodes, relationships, nodeCount: nodes.length, relationshipCount: relationships.length }}
+        communityMemberships={communityMemberships}
+      />
+    </ErrorBoundary>
+  );
 }

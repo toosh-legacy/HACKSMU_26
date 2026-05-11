@@ -10,6 +10,6 @@ sounddevice>=0.4.6
 pyserial>=3.5
 paho-mqtt>=1.6
 networkx>=3.0
-google-generativeai>=0.7
+google-genai>=1.0
 python-dotenv>=1.0
 umap-learn>=0.5

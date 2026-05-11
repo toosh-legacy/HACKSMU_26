@@ -97,6 +97,7 @@ export interface UseSigmaReturn {
   zoomIn: () => void;
   zoomOut: () => void;
   resetZoom: () => void;
+  resizeSigma: () => void;
   focusNode: (nodeId: string) => void;
   isLayoutRunning: boolean;
   startLayout: () => void;
@@ -170,6 +171,7 @@ export const useSigma = (options: UseSigmaOptions = {}): UseSigmaReturn => {
     graphRef.current = graph;
 
     const sigma = new Sigma(graph, containerRef.current, {
+      allowInvalidContainer: true,
       renderLabels: true,
       labelFont: 'JetBrains Mono, monospace',
       labelSize: 11,
@@ -444,6 +446,14 @@ export const useSigma = (options: UseSigmaOptions = {}): UseSigmaReturn => {
   const zoomIn = useCallback(() => { sigmaRef.current?.getCamera().animatedZoom({ duration: 200 }); }, []);
   const zoomOut = useCallback(() => { sigmaRef.current?.getCamera().animatedUnzoom({ duration: 200 }); }, []);
   const resetZoom = useCallback(() => { sigmaRef.current?.getCamera().animatedReset({ duration: 300 }); setSelectedNode(null); }, [setSelectedNode]);
+  const resizeSigma = useCallback(() => {
+    const sigma = sigmaRef.current;
+    if (!sigma) return;
+    sigma.resize();
+    sigma.refresh();
+    // Re-fit camera after resize so nodes are visible.
+    requestAnimationFrame(() => sigma.getCamera().animatedReset({ duration: 300 }));
+  }, []);
   const startLayout = useCallback(() => { const g = graphRef.current; if (g && g.order > 0) runLayout(g); }, [runLayout]);
   const stopLayout = useCallback(() => {
     if (layoutTimeoutRef.current) { clearTimeout(layoutTimeoutRef.current); layoutTimeoutRef.current = null; }
@@ -457,7 +467,7 @@ export const useSigma = (options: UseSigmaOptions = {}): UseSigmaReturn => {
   const refreshHighlights = useCallback(() => { sigmaRef.current?.refresh(); }, []);
 
   return {
-    containerRef, sigmaRef, setGraph, zoomIn, zoomOut, resetZoom, focusNode,
+    containerRef, sigmaRef, setGraph, zoomIn, zoomOut, resetZoom, resizeSigma, focusNode,
     isLayoutRunning, startLayout, stopLayout, selectedNode, setSelectedNode, refreshHighlights,
   };
 };

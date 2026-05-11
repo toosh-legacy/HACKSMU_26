@@ -28,11 +28,11 @@ const DynamicActionBar = React.forwardRef(
             flexDirection: "column",
             overflow: "hidden",
             borderRadius: "16px",
-            background: "rgba(250,240,230,0.07)",
+            background: "rgba(26, 16, 8, 0.88)",
             backdropFilter: "blur(20px)",
             WebkitBackdropFilter: "blur(20px)",
-            border: "1px solid rgba(250,240,230,0.1)",
-            boxShadow: "0 8px 32px rgba(0,0,0,0.4), 0 1px 0 rgba(250,240,230,0.05) inset",
+            border: "1px solid rgba(255,255,255,0.08)",
+            boxShadow: "0 8px 32px rgba(0,0,0,0.25), 0 1px 0 rgba(255,255,255,0.06) inset",
           }}
           animate={containerAnimate}
           transition={transition}
@@ -90,13 +90,13 @@ const DynamicActionBar = React.forwardRef(
                     letterSpacing: "0.01em",
                     transition: "all 0.15s ease",
                     background: isActive || action.isActive
-                      ? "rgba(250,240,230,0.12)"
+                      ? "rgba(226,112,58,0.18)"
                       : "transparent",
                     color: action.isActive
-                      ? "var(--linen)"
+                      ? "#FAF0E6"
                       : isActive
-                      ? "var(--linen)"
-                      : "rgba(250,240,230,0.45)",
+                      ? "#FAF0E6"
+                      : "rgba(250,240,230,0.50)",
                     whiteSpace: "nowrap",
                   }}
                 >

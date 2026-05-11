@@ -3,6 +3,7 @@ import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
 import path from 'path';
 import { createReadStream, existsSync, statSync } from 'fs';
+import { execFile } from 'child_process';
 
 export default defineConfig({
   build: {
@@ -35,6 +36,24 @@ export default defineConfig({
   plugins: [
     react(),
     tailwindcss(),
+    {
+      name: 'generate-hypotheses',
+      configureServer(server) {
+        const rumbleosDir = path.resolve(__dirname, '../rumbleos');
+        server.middlewares.use('/api/generate-hypotheses', (req, res, next) => {
+          if (req.method !== 'POST') { next(); return; }
+          res.setHeader('Content-Type', 'application/json');
+          execFile('python', ['gen_hypotheses.py'], { cwd: rumbleosDir }, (err, stdout, stderr) => {
+            if (err) {
+              res.statusCode = 500;
+              res.end(JSON.stringify({ error: stderr || err.message }));
+            } else {
+              res.end(JSON.stringify({ ok: true }));
+            }
+          });
+        });
+      },
+    },
     {
       name: 'serve-results',
       configureServer(server) {

@@ -15,7 +15,9 @@
       "Read(//home/tusha/.local/bin/**)",
       "Bash(find / -name \"pip*\" -maxdepth 6)",
       "Bash(sudo apt-get:*)",
-      "Bash(npm run:*)"
+      "Bash(npm run:*)",
+      "Bash(pip3 show:*)",
+      "Bash(pip list:*)"
     ]
   }
 }

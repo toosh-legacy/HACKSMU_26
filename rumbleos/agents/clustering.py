@@ -205,8 +205,8 @@ class ClusteringAgent(mp.Process):
             import umap
             coords_2d = umap.UMAP(n_components=2, n_neighbors=10,
                                    min_dist=0.1, random_state=42).fit_transform(X)
-        except ImportError:
-            print("[Clustering] umap-learn not found, using PCA fallback")
+        except (ImportError, RuntimeError, Exception) as _umap_err:
+            print(f"[Clustering] UMAP unavailable ({_umap_err.__class__.__name__}), using PCA fallback")
             from sklearn.decomposition import PCA
             coords_2d = PCA(n_components=2).fit_transform(X)
 

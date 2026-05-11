@@ -27,6 +27,7 @@ import Graph from 'graphology';
 
 export interface NetworkGraphHandle {
   focusNode: (nodeId: string) => void;
+  resizeSigma: () => void;
 }
 
 export interface NetworkGraphProps {
@@ -109,6 +110,7 @@ export const NetworkGraph = forwardRef<NetworkGraphHandle, NetworkGraphProps>((p
     zoomIn,
     zoomOut,
     resetZoom,
+    resizeSigma,
     focusNode,
     isLayoutRunning,
     startLayout,
@@ -131,7 +133,8 @@ export const NetworkGraph = forwardRef<NetworkGraphHandle, NetworkGraphProps>((p
       if (node) { setSelectedAppNode(node); onNodeClick?.(node); }
       focusNode(nodeId);
     },
-  }), [focusNode, nodeById, onNodeClick]);
+    resizeSigma,
+  }), [focusNode, resizeSigma, nodeById, onNodeClick]);
 
   // Build graphology graph when data changes
   useEffect(() => {
@@ -177,11 +180,13 @@ export const NetworkGraph = forwardRef<NetworkGraphHandle, NetworkGraphProps>((p
 
   return (
     <div className={`network-graph-root ${className}`} style={{ position: 'relative', width: '100%', height: '100%', background: 'var(--charcoal)' }}>
-      {/* Background gradient */}
-      <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', background: 'radial-gradient(circle at 50% 50%, rgba(226, 112, 58, 0.05) 0%, transparent 70%), var(--charcoal)' }} />
+      {/* Sigma container — must come before absolutely-positioned overlays in DOM
+           so it is a later sibling and therefore paints on top of the background. */}
+      <div ref={containerRef} style={{ position: 'relative', zIndex: 1, width: '100%', height: '100%', cursor: 'grab' }} />
 
-      {/* Sigma container */}
-      <div ref={containerRef} style={{ width: '100%', height: '100%', cursor: 'grab' }} />
+      {/* Background gradient — rendered first in DOM so it is below the canvas.
+           Only the semi-transparent radial glow; solid charcoal comes from the parent. */}
+      <div style={{ position: 'absolute', inset: 0, zIndex: 0, pointerEvents: 'none', background: 'radial-gradient(circle at 50% 50%, rgba(226, 112, 58, 0.05) 0%, transparent 70%)' }} />
 
       {/* Hovered node tooltip */}
       {hoveredNodeName && !sigmaSelectedNode && (
