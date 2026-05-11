@@ -1,8 +1,36 @@
 import { mountNetworkGraph } from './mountNetworkGraph.jsx';
 import { mountAuroraWaves } from './mountAuroraWaves.jsx';
 import { mountNavBar } from './mountNavBar.jsx';
+import { mountHomepage } from './mountHomepage.jsx';
 
 const SESSION_KEY = 'tribal_session';
+const DEFAULT_BACKEND_ORIGIN = 'https://hacksmu-26.onrender.com';
+const BACKEND_ORIGIN = (
+  import.meta.env.VITE_BACKEND_ORIGIN ||
+  (window.location.hostname === 'localhost' ? '' : DEFAULT_BACKEND_ORIGIN)
+).replace(/\/$/, '');
+
+function apiUrl(path) {
+  return `${BACKEND_ORIGIN}/api${path.startsWith('/') ? path : `/${path}`}`;
+}
+
+function resultsUrl(path) {
+  return `${BACKEND_ORIGIN}/results${path.startsWith('/') ? path : `/${path}`}`;
+}
+
+async function requestJson(url, options) {
+  const res = await fetch(url, options);
+  const text = await res.text();
+  if (!res.ok) {
+    throw new Error(text || `${res.status} ${res.statusText}`);
+  }
+  if (!text) return {};
+  try {
+    return JSON.parse(text);
+  } catch {
+    throw new Error(text.slice(0, 160));
+  }
+}
 
 function applySessionFromAuth() {
   try {
@@ -59,11 +87,11 @@ async function loadCSV(url) {
 async function loadData() {
   try {
     const [calls, clusters, edgesRaw, hypothesesText, kb] = await Promise.all([
-      loadCSV('/results/batch_results_clustered.csv').catch(() => loadCSV('/results/batch_results.csv')),
-      fetch('/results/cluster_summaries.json').then(r => r.json()).catch(() => ({})),
-      loadCSV('/results/tribe_edges.csv').catch(() => []),
-      fetch('/results/ai_hypotheses.txt').then(r => r.ok ? r.text() : '').catch(() => ''),
-      fetch('/results/knowledge_base.json').then(r => r.ok ? r.json() : null).catch(() => null),
+      loadCSV(resultsUrl('/batch_results_clustered.csv')).catch(() => loadCSV(resultsUrl('/batch_results.csv'))),
+      requestJson(resultsUrl('/cluster_summaries.json')).catch(() => ({})),
+      loadCSV(resultsUrl('/tribe_edges.csv')).catch(() => []),
+      fetch(resultsUrl('/ai_hypotheses.txt')).then(r => r.ok ? r.text() : '').catch(() => ''),
+      requestJson(resultsUrl('/knowledge_base.json')).catch(() => null),
     ]);
     allCalls = calls;
     clusterSummaries = clusters;
@@ -80,6 +108,7 @@ async function loadData() {
 // ── Landing → App ────────────────────────────────────────────────────
 document.getElementById('process-btn')?.addEventListener('click', () => {
   document.getElementById('landing').style.display = 'none';
+  document.getElementById('homepage-content').style.display = 'none';
   document.getElementById('app-content').classList.add('visible');
 });
 
@@ -87,6 +116,7 @@ document.getElementById('app-home')?.addEventListener('click', (e) => {
   e.preventDefault();
   document.getElementById('app-content').classList.remove('visible');
   document.getElementById('landing').style.display = 'flex';
+  document.getElementById('homepage-content').style.display = 'block';
   window.history.replaceState(null, '', ' '); // clear hash to reset router visually
 });
 
@@ -99,6 +129,7 @@ function navigateTo(hash) {
   if (targetSection) targetSection.classList.add('active');
 
   if (sectionId === 'network') setTimeout(renderNetwork, 50);
+  if (sectionId === 'upload') initUploadSection();
 }
 
 window.addEventListener('hashchange', () => navigateTo(window.location.hash));
@@ -267,16 +298,16 @@ window.selectCall = function(callId) {
       </div>
     </div>
     <div class="detail-spectrogram">
-      <img src="/results/${c.call_id}_comparison.png" alt="Spectrogram" onerror="this.parentElement.innerHTML='<p style=color:var(--text-muted)>No spectrogram</p>'" />
+      <img src="${resultsUrl(`/${c.call_id}_comparison.png`)}" alt="Spectrogram" onerror="this.parentElement.innerHTML='<p style=color:var(--text-muted)>No spectrogram available</p>'" />
     </div>
     <div class="detail-audio">
       <div class="detail-audio-label">Cleaned Audio</div>
-      <audio controls preload="none" src="/results/${c.call_id}_clean.wav"></audio>
+      <audio controls preload="none" src="${resultsUrl(`/${c.call_id.replace(/_c\d+$/, '')}_clean.wav`)}"></audio>
     </div>
     ${c.multi_elephant === 'True' ? `
     <div class="detail-audio">
       <div class="detail-audio-label">Elephant B (separated)</div>
-      <audio controls preload="none" src="/results/${c.call_id}_elephant_b.wav"></audio>
+      <audio controls preload="none" src="${resultsUrl(`/${c.call_id.replace(/_c\d+$/, '')}_clean_b.wav`)}"></audio>
     </div>` : ''}
   `;
 };
@@ -392,6 +423,140 @@ window.viewClusterInNetwork = function(clusterId) {
   }, 400);
 };
 
+// ── Upload ───────────────────────────────────────────────────────────
+let _uploadPollTimer = null;
+let _uploadSectionReady = false;
+
+function initUploadSection() {
+  if (_uploadSectionReady) return;
+  _uploadSectionReady = true;
+
+  const dropzone = document.getElementById('upload-dropzone');
+  const fileInput = document.getElementById('upload-file-input');
+
+  if (!dropzone || !fileInput) return;
+
+  // Click anywhere on zone to open picker
+  dropzone.addEventListener('click', () => fileInput.click());
+
+  fileInput.addEventListener('change', () => {
+    if (fileInput.files[0]) submitFile(fileInput.files[0]);
+  });
+
+  // Drag-and-drop
+  dropzone.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    dropzone.classList.add('drag-over');
+  });
+  dropzone.addEventListener('dragleave', () => dropzone.classList.remove('drag-over'));
+  dropzone.addEventListener('drop', (e) => {
+    e.preventDefault();
+    dropzone.classList.remove('drag-over');
+    const file = e.dataTransfer.files[0];
+    if (file) submitFile(file);
+  });
+
+  // Resume polling if pipeline is already running from a previous upload
+  requestJson(apiUrl('/status'))
+    .then(s => { if (s.status === 'running') startPolling(); })
+    .catch(() => {});
+}
+
+function submitFile(file) {
+  if (!file.name.toLowerCase().endsWith('.wav')) {
+    showUploadStatus('error', 'Only .wav files are accepted.');
+    return;
+  }
+
+  showUploadStatus('running', file.name);
+
+  const reader = new FileReader();
+  reader.onload = () => {
+    const base64 = reader.result.split(',')[1];
+    requestJson(apiUrl('/upload'), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ filename: file.name, data: base64 }),
+    })
+      .then(data => {
+        if (data.error) showUploadStatus('error', data.error);
+        else startPolling();
+      })
+      .catch(err => showUploadStatus('error', String(err)));
+  };
+  reader.readAsDataURL(file);
+}
+
+function showUploadStatus(status, filename) {
+  const card = document.getElementById('upload-status-card');
+  const badge = document.getElementById('upload-status-badge');
+  const label = document.getElementById('upload-filename-label');
+
+  if (!card) return;
+  card.style.display = 'block';
+  badge.textContent = status.charAt(0).toUpperCase() + status.slice(1);
+  badge.className = `upload-status-badge ${status}`;
+  if (filename) label.textContent = filename;
+}
+
+function startPolling() {
+  if (_uploadPollTimer) return;
+  _uploadPollTimer = setInterval(pollStatus, 1500);
+}
+
+let _lastLogCount = 0;
+
+function pollStatus() {
+  requestJson(apiUrl('/status'))
+    .then(data => {
+      const badge = document.getElementById('upload-status-badge');
+      const bar = document.getElementById('upload-progress-bar');
+      const log = document.getElementById('upload-log');
+
+      if (badge) {
+        badge.textContent = data.status.charAt(0).toUpperCase() + data.status.slice(1);
+        badge.className = `upload-status-badge ${data.status}`;
+      }
+      if (bar) {
+        bar.style.width = `${data.progress || 0}%`;
+        if (data.status === 'done') bar.classList.add('done');
+        else bar.classList.remove('done');
+      }
+      if (log && data.logs) {
+        const newLines = data.logs.slice(_lastLogCount);
+        _lastLogCount = data.logs.length;
+        newLines.forEach(line => {
+          const span = document.createElement('span');
+          span.className = line.startsWith('OK') || line.includes('done')
+            ? 'log-ok'
+            : line.startsWith('FAIL') || line.toLowerCase().includes('error')
+              ? 'log-err'
+              : 'log-info';
+          span.textContent = line + '\n';
+          log.appendChild(span);
+        });
+        if (newLines.length) log.scrollTop = log.scrollHeight;
+      }
+
+      if (data.status === 'done' || data.status === 'error') {
+        clearInterval(_uploadPollTimer);
+        _uploadPollTimer = null;
+        _lastLogCount = 0;
+        if (data.status === 'done') reloadAndRefresh();
+      }
+    })
+    .catch(() => {});
+}
+
+async function reloadAndRefresh() {
+  const ok = await loadData();
+  if (!ok) return;
+  networkMounted = false;   // force network re-mount on next visit
+  renderDashboard();
+  renderExplorer();
+  renderClusters();
+}
+
 // ── Init ─────────────────────────────────────────────────────────────
 async function init() {
   const ok = await loadData();
@@ -406,3 +571,4 @@ async function init() {
 init();
 mountAuroraWaves('aurora-banner');
 mountNavBar('app-nav-root');
+mountHomepage('homepage-react-root');

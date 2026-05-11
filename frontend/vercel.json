@@ -1,0 +1,12 @@
+{
+  "rewrites": [
+    {
+      "source": "/api/:path*",
+      "destination": "https://hacksmu-26.onrender.com/api/:path*"
+    },
+    {
+      "source": "/results/:path*",
+      "destination": "https://hacksmu-26.onrender.com/results/:path*"
+    }
+  ]
+}

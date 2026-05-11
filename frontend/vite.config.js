@@ -17,6 +17,14 @@ export default defineConfig({
   server: {
     port: 5173,
     open: true,
+    proxy: {
+      // Forward all /api/* requests to the Python upload server
+      '/api': {
+        target: 'http://localhost:5050',
+        changeOrigin: true,
+        rewrite: (p) => p.replace(/^\/api/, ''),
+      },
+    },
   },
   publicDir: 'public',
   resolve: {
@@ -30,22 +38,20 @@ export default defineConfig({
     {
       name: 'serve-results',
       configureServer(server) {
+        // ── /results static files ─────────────────────────────────
         const resultsDir = path.resolve(__dirname, '../rumbleos/results');
         server.middlewares.use('/results', (req, res, next) => {
           const filePath = path.join(resultsDir, decodeURIComponent(req.url));
           if (existsSync(filePath) && statSync(filePath).isFile()) {
-            const ext = path.extname(filePath).toLowerCase();
             const mimeTypes = {
-              '.png': 'image/png',
-              '.jpg': 'image/jpeg',
-              '.wav': 'audio/wav',
-              '.csv': 'text/csv',
-              '.json': 'application/json',
-              '.txt': 'text/plain',
-              '.log': 'text/plain',
+              '.png': 'image/png', '.jpg': 'image/jpeg',
+              '.wav': 'audio/wav', '.csv': 'text/csv',
+              '.json': 'application/json', '.txt': 'text/plain',
             };
-            res.setHeader('Content-Type', mimeTypes[ext] || 'application/octet-stream');
-            res.setHeader('Access-Control-Allow-Origin', '*');
+            res.setHeader(
+              'Content-Type',
+              mimeTypes[path.extname(filePath).toLowerCase()] || 'application/octet-stream'
+            );
             createReadStream(filePath).pipe(res);
           } else {
             next();

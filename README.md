@@ -1,490 +1,641 @@
-# RumbleOS
+```
+  ████████╗██████╗ ██╗██████╗  █████╗ ██╗
+  ╚══██╔══╝██╔══██╗██║██╔══██╗██╔══██╗██║
+     ██║   ██████╔╝██║██████╔╝███████║██║
+     ██║   ██╔══██╗██║██╔══██╗██╔══██║██║
+     ██║   ██║  ██║██║██████╔╝██║  ██║███████╗
+     ╚═╝   ╚═╝  ╚═╝╚═╝╚═════╝ ╚═╝  ╚═╝╚══════╝
 
-A multi-agent signal processing system that removes mechanical noise from elephant
-infrasound recordings and discovers behavioral communication patterns. Built for
-HackSMU 2026.
+  🐘  hear what humans can't  •  HackSMU 2026
+  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  10 Hz ▁▂▃▄▅▆▇█▇▆▅▄▃▂▁ 35 Hz  →  clean signal
+```
+
+A multi-agent signal processing system that strips mechanical noise from elephant
+infrasound recordings and uncovers behavioral communication patterns. Built at HackSMU 2026.
+
+**Devpost:** https://devpost.com/software/le-go-snm4q6
 
 ---
 
 ## What It Does
 
-Elephants communicate through infrasound — low-frequency rumbles (10–35 Hz fundamental,
-harmonics extending to ~1000 Hz) inaudible to humans. Field recordings of these calls
-are almost always contaminated by airplane flyovers, vehicle engines, or generator hum
-at overlapping frequencies, making them difficult to analyze scientifically.
+Elephants communicate through infrasound - low-frequency rumbles (10–35 Hz fundamental,
+harmonics to ~1000 Hz) inaudible to humans. Field recordings are almost always contaminated
+by airplane flyovers, vehicle engines, or generator hum at overlapping frequencies.
 
-RumbleOS takes raw, noisy WAV files and:
+Tribal takes raw, noise WAV files and:
 
-1. Automatically classifies the noise type (airplane, car, generator)
-2. Runs a full-file NMF-based Wiener mask to suppress noise across the entire recording
-3. Reconstructs harmonics that were damaged by the noise
-4. Detects whether two elephants were calling simultaneously and separates them
-5. Scores each call for SNR improvement and harmonic completeness
-6. Clusters all calls by acoustic signature and asks Claude to generate behavioral hypotheses
+1. Classifies the noise type (airplane, vehicle, generator variant)
+2. Spectral subtraction of the stationary noise floor before NMF
+3. NMF-based Wiener masking to suppress noise, retaining only elephant harmonics
+4. Reconstructs harmonics damaged by the noise via exponential decay curve fitting
+5. Detects two simultaneous callers and separates them into independent tracks
+6. Scores each call for tonal SNR improvement and harmonic completeness
+7. Clusters all calls by acoustic signature and generates AI behavioral hypotheses via Gemini
 
-The output is a clean WAV per recording (non-elephant regions silenced), per-call
-spectrograms, a tribe similarity graph, cluster summaries, and optional AI-generated
-behavioral notes.
-
----
-
-## Architecture
-
-### Design Philosophy
-
-The system is a **message-passing pipeline of independent OS processes**. Each stage
-is a `BaseAgent` subclass that extends `multiprocessing.Process`. Stages communicate
-by passing plain Python `dict` objects through `mp.Queue` pipes. No shared memory.
-No global state. If one stage crashes it forwards an `error` key and the pipeline
-keeps moving — nothing silently stalls.
-
-```
-WAV files
-    |
-    v
-[PreprocessAgent]      Stage 1 — load, downsample 4kHz, bandpass, extract segment
-    |
-    v
-[FingerprintAgent]     Stage 2 — classify noise: airplane / car / generator_Nhz
-    |
-    v
-[NMFMaskingAgent]      Stage 3 — STFT -> NMF -> harmonic scoring -> Wiener mask  <-- core ML
-    |
-    v
-[ReconstructionAgent]  Stage 4 — fit exponential decay, reconstruct damaged harmonics
-    |
-    v
-[OverlapAgent]         Stage 5 — detect dual callers, competitive Wiener separation
-    |
-    v
-[QualityScorerAgent]   Stage 6 — SNR before/after, harmonic completeness, validity flag
-    |
-    v
-[ClusteringAgent]      Stage 7 — UMAP + K-means, Tribe graph, Claude API hypotheses
-
-[SenseCapAgent]        Parallel — streams live detection events to SenseCAP Indicator
-```
-
-### Two Execution Modes
-
-| Mode | Flag | Use |
-|------|------|-----|
-| `FULL_FILE_MODE = True` | default | Single-shot NMF over the entire WAV file — the model decides what to keep |
-| `FULL_FILE_MODE = False` | legacy | Per-call windowed processing gated by timestamps.csv |
-
-Full-file mode is the correct production mode. The timestamps.csv is used only as a
-reference for per-call scoring and clustering metrics — it is **not** a processing gate.
-The NMF runs once over the whole signal, and the mask values determine what survives.
-This means no artificial cuts and no human-defined windows — if the model finds elephant
-signal somewhere, it keeps it; everything else is silenced.
-
-### Key Parameters
-
-```python
-TARGET_SR      = 4000    # 4 kHz gives 1.95 Hz/bin at n_fft=2048
-N_FFT          = 2048    # STFT window
-HOP_LENGTH     = 512     # STFT hop
-N_COMPONENTS   = 10      # NMF basis vectors
-TOP_K_ELEPHANT = 2       # top-K components classified as elephant
-MASK_FLOOR     = 0.25    # hard-zero bins below this in the Wiener mask
-BANDPASS       = 10-1000 Hz
-F0_RANGE       = 10-35 Hz   # elephant fundamental range
-```
-
-Do not change `TARGET_SR`, `N_FFT`, or `HOP_LENGTH` without re-tuning harmonic
-scoring thresholds — these three constants are tightly coupled.
+Results are displayed in a Vite + React frontend with a knowledge graph, spectrogram
+explorer, and cluster analysis view.
 
 ---
 
-## Pipeline Stages In Detail
-
-### Stage 1 — PreprocessAgent
-
-Loads the WAV at native sample rate, records channel count and duration, then:
-
-- Downsamples to 4 kHz mono (soxr_hq resampler) for the NMF pipeline
-- Applies a 4th-order Butterworth bandpass (10–1000 Hz)
-- Extracts a call segment with 1.5 s context padding on each side
-- Extracts 3 s of pre-call audio as a noise reference for spectral subtraction
-
-The native-SR buffer is released immediately after metadata is recorded. Output WAVs
-are reconstructed by reloading from disk at write time, avoiding queue bloat.
-
-**Why 4 kHz?** The highest elephant harmonic of interest is ~1000 Hz. Nyquist requires
-2 kHz minimum; 4 kHz gives a clean margin. At n_fft=2048 this yields ~1.95 Hz/bin —
-enough frequency resolution to resolve the 10–35 Hz F0 band unambiguously.
-
-### Stage 2 — FingerprintAgent
-
-Classifies noise type from the spectral power distribution using Welch's method:
-
-- **Generator**: sharp harmonic spikes at exact multiples of 45, 60, or 90 Hz (engine RPM)
-- **Airplane**: broadband energy concentrated in 80–200 Hz, smooth log-PSD curve
-- **Car**: quasi-harmonic, non-stationary, variable RPM
-
-If `noise_type` is already set in the message (from timestamps.csv ground truth), this
-stage is a no-op. The heuristic only fires on unlabeled live audio.
-
-### Stage 3 — NMFMaskingAgent (Core ML)
-
-This is the primary noise removal stage. It runs the following sequence:
-
-**Step 1: Spectral subtraction**
-For car and airplane noise, a noise spectrum is estimated from the 3 s pre-call
-noise reference. The median spectrum of that reference is subtracted from the signal
-magnitude, with a floor at 22% of original magnitude to prevent musical noise artifacts:
+## System Architecture
 
 ```
-mag_clean = max(mag - alpha * noise_spectrum, mag * 0.22)
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                              INPUT LAYER                                    │
+│                                                                             │
+│  ┌──────────────────┐    ┌──────────────────┐    ┌────────────────────┐   │
+│  │   WAV files      │    │  HTTP Upload      │    │  Raspberry Pi      │   │
+│  │  44 recordings   │    │  server.py :5050  │    │  edge/listen.py    │   │
+│  │  timestamps.csv  │    │  base64 + CSV     │    │  sounddevice 4kHz  │   │
+│  └────────┬─────────┘    └────────┬──────────┘    └─────────┬──────────┘   │
+│           └─────────────────────┬─┘                         │  MQTT/queue  │
+└─────────────────────────────────┼───────────────────────────┼──────────────┘
+                                  │ WAV + metadata             │
+                                  ▼                            ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                        PIPELINE  (9 agents · 4 workers)                    │
+│                                                                             │
+│   mp.Queue ──► mp.Queue ──► mp.Queue ──► mp.Queue ──► mp.Queue ──► mp.Queue│
+│      │             │             │            │            │            │   │
+│  ┌───▼───┐    ┌────▼────┐   ┌───▼───┐   ┌───▼───┐   ┌───▼───┐   ┌───▼───┐│
+│  │  Pre  │    │ Finger  │   │  NMF  │   │ Recon │   │ Over  │   │ Score ││
+│  │ Stage1│──► │ Stage 2 │──►│Stage 3│──►│Stage 4│──►│Stage 5│──►│Stage 6││
+│  └───────┘    └─────────┘   └───────┘   └───────┘   └───────┘   └───┬───┘│
+│  librosa       Welch PSD     STFT+NMF    exp-decay   dual-NMF     Welch│   │
+│  butter BP     comb detect   Wiener mask harmonic    comp-Wiener  SNR  │   │
+│                                          reconstruct  separation   tonal│   │
+│                                                                     ┌───▼───┐│
+│                                                                     │Sense ││
+│                                                                     │ CAP  ││
+│                                                                     │serial││
+│                                                                     └───────┘│
+└──────────────────────────────────────────┬──────────────────────────────────┘
+                                           │ all results (list of dicts)
+                                           ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                           ANALYSIS LAYER                                    │
+│                                                                             │
+│  ┌───────────────────────────────────────────────────────────────────────┐ │
+│  │  ClusteringAgent  (Stage 7 - fires once, after all calls collected)  │ │
+│  │                                                                       │ │
+│  │  feature vec  →  StandardScaler  →  UMAP (2D)  →  K-means (k≤7)    │ │
+│  │  + metadata                           or PCA                          │ │
+│  │                                                                       │ │
+│  │  cosine_similarity > 0.80  →  Tribe graph edges                      │ │
+│  │  70% acoustic + 30% metadata affinity  →  knowledge_base.json        │ │
+│  │  Gemini 1.5 Flash  →  behavioral hypotheses per cluster              │ │
+│  └───────────────────────────────────────────────────────────────────────┘ │
+│                                                                             │
+│  Outputs: *_clean.wav  ·  *_comparison.png  ·  batch_results.csv          │
+│           tribe_edges.csv  ·  cluster_summaries.json  ·  ai_hypotheses.txt │
+└─────────────────────────────────────────────────────────────────────────────┘
 ```
-
-Generators skip spectral subtraction and use a comb notch filter instead (see below).
-
-**Step 2: NMF decomposition**
-Non-negative Matrix Factorization with Kullback-Leibler divergence loss decomposes
-the noise-subtracted magnitude spectrogram into 10 basis vectors W (spectral patterns)
-and 10 activation matrices H (time patterns):
-
-```
-V ≈ W @ H.T      (freq_bins x time_frames)
-```
-
-KL divergence is used instead of Frobenius norm because KL encourages sparse,
-parts-based representations — critical for separating narrowband harmonics from
-broadband noise.
-
-**Step 3: Component scoring**
-Each NMF component k gets a combined score:
-
-```
-score[k] = 0.65 * harmonic_score(W[:,k]) + 0.35 * temporal_score(H[:,k])
-```
-
-- `harmonic_score`: measures how well W[:,k] fits an integer harmonic series rooted
-  in 10–35 Hz. Requires peaks at f0*n within ±1.5 Hz, above 3.5x the 25th-percentile
-  floor. Elephant calls score high; car engine harmonics also score high on this alone.
-
-- `temporal_score`: measures non-stationarity of H[:,k] via coefficient of variation
-  (std/mean). Elephant calls are brief localized events — their activations spike and
-  fall. Engine noise is quasi-stationary. This is the key discriminator that separates
-  elephant harmonics from car/generator harmonics that pass the frequency test.
-
-**Step 4: Wiener mask**
-The top-2 highest-scoring components are classified as elephant signal. A soft Wiener
-mask is computed from the ratio of elephant signal energy to total energy:
-
-```
-mask = e_signal / (e_signal + 0.90 * noise_signal + 1e-8)
-```
-
-Then hardened with a floor gate and squaring:
-
-```python
-mask = where(mask < 0.25, 0.0, (mask - 0.25) / 0.75)
-mask = mask ** 2
-```
-
-Squaring preserves high-confidence bins (0.9^2 = 0.81) while collapsing ambiguous
-bins (0.3^2 = 0.09). This silences residual noise without hard blocking artifacts.
-
-**Step 5: Generator comb filter**
-For generator noise, an IIR comb notch filter targets the generator's fundamental
-frequency. Critically, the notch is blended with the Wiener mask so elephant harmonics
-that happen to fall on mains frequencies are protected:
-
-```python
-notch_mask = 1.0 - (1.0 - notch_ratio) * (1.0 - mask)
-```
-
-When `mask=1` (confirmed elephant bin), the notch has zero effect. When `mask=0`
-(confirmed noise bin), full notch attenuation is applied.
-
-### Stage 4 — ReconstructionAgent
-
-Some harmonics are so heavily masked by noise that the Wiener mask suppresses them
-along with the noise. This stage recovers them by:
-
-1. Fitting a log-linear (exponential decay) curve to all surviving clean harmonics:
-   `log(E_n) = a*n + b`
-
-2. Any harmonic whose measured energy is below 20% of the expected value from this
-   curve is considered "damaged." It is reconstructed by scaling the nearest healthy
-   harmonic by the expected energy ratio.
-
-3. The reconstruction is blended conservatively (30% new, 70% existing) to avoid
-   over-synthesizing content that wasn't there.
-
-Requires at least 3 surviving harmonics for a reliable curve fit.
-
-### Stage 5 — OverlapAgent
-
-Detects whether two elephants are calling simultaneously by looking for two distinct
-F0 peaks in the 10–35 Hz band, at least 5 Hz apart, each with its own harmonic series
-(>=3 harmonics above the local floor), with the secondary peak at least 40% of the
-primary's energy.
-
-If dual callers are detected, it runs a second NMF on the cleaned STFT magnitude,
-scores each component against both F0s, then applies competitive Wiener separation:
-
-```python
-sig_a = (W * scores_a) @ H.T    # energy map for elephant A
-sig_b = (W * scores_b) @ H.T    # energy map for elephant B
-
-mask_a = (sig_a / (sig_a + sig_b + 1e-8)) ** 2
-mask_b = (sig_b / (sig_a + sig_b + 1e-8)) ** 2
-```
-
-Each time-frequency bin is allocated proportionally to whichever elephant owns more
-energy there. Two separate audio tracks are output: `cleaned` (elephant A) and
-`cleaned_b` (elephant B).
-
-The 5 Hz minimum gap between F0s comes from Poole (2005) — within a single caller's
-harmonic series, no two harmonics ever land that close to each other at the fundamental.
-
-### Stage 6 — QualityScorerAgent
-
-Computes:
-
-- **Tonal SNR** before and after cleaning — harmonic-vs-inter-harmonic power ratio
-  at the detected F0. More robust than band-energy SNR for generator recordings where
-  in-band noise at RPM frequencies would make a broadband ratio go negative even when
-  the NMF correctly removed it.
-
-- **SNR revert guard** — if the pipeline degraded SNR by more than 0.1 dB, the original
-  unprocessed segment is restored. This protects calls where NMF misclassified noise
-  as signal.
-
-- **Harmonic completeness** — fraction of expected harmonics (up to 1000 Hz) present
-  above 4x the noise floor. Uses the original PSD as a secondary noise floor reference
-  so an aggressive Wiener mask doesn't collapse the threshold to zero and produce
-  false invalids.
-
-- **Validity flag** — `valid=True` when F0 >= 10 Hz, completeness >= 20%, SNR > -20 dB.
-
-Also fires a live detection event to SenseCAP with confidence score, F0, and noise type.
-
-### Stage 7 — ClusteringAgent
-
-After all calls are scored, ClusteringAgent receives the full result set and:
-
-1. Extracts 8 acoustic features per call: F0, duration, harmonics present, completeness,
-   SNR before/after, multi-elephant flag, secondary F0.
-
-2. Reduces to 2D with **UMAP** (falls back to PCA if unavailable).
-
-3. Clusters with **K-means** (k = min(7, n_calls // 3)).
-
-4. Builds a **Tribe similarity graph** — every pair of calls with cosine similarity
-   > 0.80 in feature space gets an edge. The graph encodes which calls likely came
-   from the same individual or behavioral context.
-
-5. Optionally calls the **Claude API** (claude-sonnet-4-6) with cluster summaries to
-   generate behavioral hypotheses about what each cluster represents biologically.
-
-Outputs: `tribe_edges.csv`, `cluster_summaries.json`, `batch_results_clustered.csv`,
-`ai_hypotheses.txt`.
 
 ---
 
-## How to Use
+## Pipeline - Stage by Stage
 
-### Install
+### Stage 1 · PreprocessAgent
+
+```
+WAV (native SR, any bit depth)
+  │
+  ├─ librosa.load(sr=None, mono=False)   ← preserves channel count + native SR
+  │    source_sr, n_channels, source_len recorded for final splice
+  │
+  ├─ mean over channels → mono float32
+  │
+  ├─ librosa.resample(orig_sr=source_sr, target_sr=4000, res_type='soxr_hq')
+  │
+  ├─ scipy.signal.butter(N=4, Wn=[10,1000], btype='band', fs=4000, output='sos')
+  │    sosfiltfilt (zero-phase, no group delay)
+  │
+  ├─ segment = y[start-1.5s : end+1.5s]     ← 1.5 s context padding for STFT framing
+  ├─ noise_ref = y[start-3s : start]         ← 3 s of pure mechanical noise pre-call
+  │
+  └─ core window (start:end) tracked in both 4 kHz and native-SR sample indices
+     → spliced back into original file at write time (non-call regions bit-perfect)
+```
+
+**Why 4 kHz?** At `n_fft=2048`, `sr=4000` gives **1.953 Hz/bin** - enough resolution to
+resolve the 10–35 Hz elephant fundamental without aliasing at the 1000 Hz harmonic ceiling.
+Halving the sample rate also cuts NMF compute by 8× (STFT frames scale linearly with SR).
+
+---
+
+### Stage 2 · FingerprintAgent
+
+Classifies the mechanical noise source from the noise reference segment using
+**Welch PSD** (`nperseg=2048`). No ML - pure spectral fingerprinting.
+
+```
+noise_ref  →  scipy.signal.welch(fs=4000, nperseg=2048)
+                  │
+                  ├─ Generator detection: comb harmonic scan
+                  │    for n in 1..12:
+                  │        check psd[f0*n ± 2Hz] > local_floor × 12
+                  │    local_floor = median(PSD[50–500 Hz])  ← avoids global bias
+                  │
+                  │    h60 ≥ 6 and s60 ≥ s90  →  generator_60hz
+                  │    h90 ≥ 5                →  generator_90hz
+                  │    h45 ≥ 4                →  generator_45hz
+                  │
+                  ├─ Airplane detection: broadband energy ratio + smoothness
+                  │    low_e  = mean(PSD[80–200 Hz])
+                  │    high_e = mean(PSD[200–1000 Hz])
+                  │    ratio  = low_e / high_e
+                  │    smooth = std(diff(log10(PSD)))     ← log-smoothness of curve
+                  │
+                  │    ratio > 2.5 and smooth < 0.4  →  airplane
+                  │
+                  └─ else  →  car / vehicle
+```
+
+**Design note:** The local floor (median of 50–500 Hz band) replaced a global 20th-percentile
+floor. Global p20 was too low when the bandpass concentrated energy below 200 Hz, causing
+residual mains hum to trigger false `generator` classifications.
+
+---
+
+### Stage 3 · NMFMaskingAgent  ← core ML
+
+This is the noise separation engine. Three sub-steps: spectral subtraction, NMF decomposition, and Wiener masking.
+
+```
+                    ┌─────────────────────────────────────┐
+                    │         SPECTRAL SUBTRACTION         │
+                    │                                     │
+  segment ──STFT──► │  V_orig = |STFT(segment)|           │
+  noise_ref──STFT──► │  N_ref  = median(|STFT(noise_ref)|) │
+                    │                                     │
+                    │  V_sub = max(V_orig - α·N_ref,      │
+                    │              V_orig · 0.22)         │
+                    │                                     │
+                    │  α = 1.25 for car + airplane        │
+                    │  α = None for generators (comb      │
+                    │       notch filter handles those)   │
+                    └──────────────┬──────────────────────┘
+                                   │ V_sub (noise-reduced magnitude)
+                                   ▼
+                    ┌─────────────────────────────────────┐
+                    │           NMF DECOMPOSITION          │
+                    │                                     │
+                    │  V_sub ≈ W · H                      │
+                    │                                     │
+                    │  W: (1025 freq_bins × 10 components)│
+                    │  H: (time_frames   × 10 components) │
+                    │                                     │
+                    │  init:      nndsvda                 │
+                    │  solver:    multiplicative update   │
+                    │  beta_loss: kullback-leibler        │
+                    │  max_iter:  800  tol: 1e-3          │
+                    └──────────────┬──────────────────────┘
+                                   │ W, H
+                                   ▼
+                    ┌─────────────────────────────────────┐
+                    │        COMPONENT SCORING             │
+                    │                                     │
+                    │  harmonic_score(W[:,k]):            │
+                    │    find F0 ∈ [10,35] Hz in W[:,k]  │
+                    │    for n in 1..20:                  │
+                    │        check W[F0·n ± 1.5Hz] >      │
+                    │               percentile(W,25)·3.5  │
+                    │    score = (Σ harmonic energy/total)│
+                    │             ×0.6 + (hits/5)×0.4    │
+                    │                                     │
+                    │  temporal_score(H[:,k]):            │
+                    │    cv = std(H_norm) / mean(H_norm)  │
+                    │    score = clip(cv, 0, 2) / 2.0     │
+                    │    (elephant=localized, noise=flat) │
+                    │                                     │
+                    │  combined = 0.65·harmonic           │
+                    │           + 0.35·temporal           │
+                    │                                     │
+                    │  select TOP_K=2 components          │
+                    │  (drop any below floor 0.15)        │
+                    └──────────────┬──────────────────────┘
+                                   │ is_elephant[k]
+                                   ▼
+                    ┌─────────────────────────────────────┐
+                    │          WIENER MASKING              │
+                    │                                     │
+                    │  e_sig = W[:,elephant] @ H[:,elephant]ᵀ │
+                    │  n_sig = W[:,noise]    @ H[:,noise]ᵀ    │
+                    │                                     │
+                    │  mask = e_sig / (e_sig + 0.9·n_sig) │
+                    │  mask applied to V_orig (not V_sub) │
+                    │                                     │
+                    │  hard gate:  mask < 0.25 → 0        │
+                    │  rescale:    (mask-0.25) / 0.75     │
+                    │  sharpen:    mask = mask²           │
+                    │    (0.9²=0.81, 0.3²=0.09, 0.1²=0.01)│
+                    │                                     │
+                    │  generators: additionally apply     │
+                    │  iircomb notch (Q=35) at RPM freq   │
+                    │  only in noise bins (mask≈0)        │
+                    └─────────────────────────────────────┘
+```
+
+**Why KL divergence?** Beta-loss=2 (Frobenius) blurred the 18 Hz fundamental into the noise
+floor. KL (beta=1) enforces sparse, parts-based decomposition - it prefers representations
+where each component "owns" a narrow spectral region, which matches harmonic structure far
+better than a least-squares solution.
+
+**Why Top-K instead of a threshold?** With Frobenius loss, `harmonic_pattern_score` clustered
+tightly in 0.45–0.55, causing the 0.35 threshold to select all 10 components, collapsing the
+mask to all-ones (0 dB improvement). Top-K is invariant to score distribution shift.
+
+**Generator comb notch design:**
+```
+notch_mask = 1 - (1 - notch_ratio) × (1 - mask)
+  mask=1 (elephant bin):  notch_mask = 1     → zero attenuation
+  mask=0 (noise bin):     notch_mask = notch_ratio → full notch
+```
+The previous formulation `mask × notch_ratio` gutted the 3rd harmonic of 20 Hz elephants
+whenever it landed on 60/120/180 Hz. The new formulation gates notch application on mask value.
+
+---
+
+### Stage 4 · ReconstructionAgent
+
+Noise masking can destroy harmonics that happen to fall inside a loud noise band. This stage
+fits a decay model to the surviving harmonic series and reconstructs missing bands.
+
+```
+  cleaned_mag = magnitude × mask    ← Wiener output from Stage 3
+
+  For each harmonic n = 1..24:
+      h_energy[n] = mean(cleaned_mag[F0·n ± 3 Hz, :])
+
+  Require ≥ 3 surviving harmonics, then fit log-linear decay:
+      log(E_n) = a·n + b        (polyfit degree 1 on log scale)
+      ⟺  E_n ≈ exp(b) · exp(a·n)   (exponential decay in linear scale)
+
+  For each harmonic where actual < expected × 0.20 (damaged):
+      find nearest healthy neighbor harmonic (energy > expected × 0.5)
+      scale its STFT bins to expected energy:
+          recon = cleaned_mag[neighbor_bins] × (expected / E_neighbor)
+      blend:  cleaned_mag[target] = 0.3·recon + 0.7·cleaned_mag[target]
+              (conservative - trust Wiener mask, only nudge toward expected)
+
+  ISTFT(cleaned_mag × exp(i·phase))  →  cleaned audio
+  length-matched to input segment (ISTFT rounding ±few samples corrected)
+```
+
+---
+
+### Stage 5 · OverlapAgent
+
+Detects simultaneous callers and separates them via competitive Wiener masking.
+
+```
+  STFT magnitude from Stage 3
+      │
+      ▼ mean over time frames → F0 energy profile [10–35 Hz]
+      │
+      ▼ scipy.signal.find_peaks(height=max×0.50, distance=5 bins)
+      │
+      ├─ < 2 peaks  →  single caller path (pass through)
+      │
+      └─ ≥ 2 peaks:
+            secondary peak must satisfy:
+              energy_ratio  ≥ 0.40  (not a sidelobe)
+              sec_harmonics ≥ 3     (own harmonic series above 3×median floor)
+              |F0_a - F0_b| ≥ 5 Hz  (Poole 2005 - below this = harmonics of same caller)
+
+            if all three pass → multi_elephant = True
+
+  Dual-elephant separation (competitive Wiener):
+      cleaned_mag = magnitude × mask      ← operate in frequency domain
+      NMF(cleaned_mag, n_components=8, KL loss, max_iter=800)
+      W: (freq_bins × 8)   H: (time_frames × 8)
+
+      score_a[k] = count harmonics of F0_a in W[:,k] above local floor×2
+      score_b[k] = count harmonics of F0_b in W[:,k] above local floor×2
+
+      sig_a = (W × score_a) @ Hᵀ     ← weighted spectral energy per elephant
+      sig_b = (W × score_b) @ Hᵀ
+
+      mask_a = (sig_a / (sig_a + sig_b))²   ← squared = bin hardening
+      mask_b = (sig_b / (sig_a + sig_b))²
+
+      cleaned_a = ISTFT(cleaned_mag × mask_a × exp(i·phase))
+      cleaned_b = ISTFT(cleaned_mag × mask_b × exp(i·phase))
+```
+
+**Insight:** within a single call, harmonics never cross. When two callers overlap, their
+harmonics do cross - each NMF component scores higher for one F0 than the other, giving the
+competitive mask a natural per-component "ownership" to exploit.
+
+---
+
+### Stage 6 · QualityScorerAgent
+
+```
+  For both original and cleaned segments:
+      scipy.signal.welch(fs=4000, nperseg=2048)  →  freqs, PSD
+
+  Tonal SNR (harmonic-vs-inter-harmonic, preferred):
+      for k = 1..15:
+          harm_pow    += PSD[F0·k ± 2.5 Hz].max()
+          between_pow += PSD[F0·k+3 : F0·k+(F0-3) Hz].mean()
+      SNR_dB = 10·log10(mean_harm_pow / mean_between_pow)
+
+  Fallback SNR (broadband, when F0 unknown):
+      SNR_dB = 10·log10(mean(PSD[10–150Hz]) / mean(PSD[300–1000Hz]))
+
+  Safety revert: if SNR_after < SNR_before − 0.1 dB
+      → output = original segment (pipeline made it worse, silently revert)
+
+  Harmonic completeness:
+      noise_floor = max(mean(PSD_cleaned[300–1000Hz]),
+                        mean(PSD_orig[300–1000Hz]) × 0.10)
+      for n = 1..20 (while F0·n ≤ 1000 Hz):
+          h_present++ if PSD_cleaned[F0·n ± 3Hz].max() > noise_floor × 4
+
+      completeness = h_present / h_possible
+
+  valid = (F0 ≥ 10 Hz) and (completeness ≥ 0.20) and (SNR_after > −20 dB)
+
+  SenseCAP event: { detected, confidence=(SNR_after+40)×2, f0_hz, noise_type }
+```
+
+**Why tonal SNR?** A plain band-energy SNR goes negative when generator RPM harmonics and
+elephant harmonics share the same spectral band - the NMF correctly removes the in-band noise
+but the broadband ratio sees less energy and reports degradation. Harmonic-vs-inter-harmonic
+measures only the bins that matter.
+
+---
+
+### Stage 7 · ClusteringAgent
+
+```
+  Feature vector per valid call (8 dimensions):
+    [f0_hz, duration_s, harmonics_present, harmonic_completeness,
+     snr_after_db, snr_improvement_db, multi_elephant_flag, f0_b]
+
+  Optional context columns from timestamps.csv (15 fields):
+    elephant_id · age_class · age · sex · location · location_id
+    camera_id · recorder_id · recording_device
+    relationship · relationship_group · family_group · clan
+    breeding_context · breeding_target · call_type
+    → one-hot encoded and horizontally stacked with acoustic features
+
+  Pipeline:
+    StandardScaler → UMAP(n_components=2, n_neighbors=10, min_dist=0.1)
+                                     or PCA(n_components=2) fallback
+    K-means(k = min(7, n_valid//3), n_init=10, random_state=42)
+
+  Tribe similarity graph:
+    acoustic_sim[i,j] = cosine_similarity(acoustic_feature_i, acoustic_feature_j)
+    meta_sim[i,j]     = weighted field overlap:
+                          elephant_id×4 · family_group×3 · clan×3
+                          sex×2 · age_class×2 · location×2 · breeding_context×2
+                          call_type×1 · camera_id×1 ...
+    combined = 0.70·acoustic_sim + 0.30·meta_sim
+    edge kept if combined ≥ 0.72 OR meta_sim ≥ 0.80
+
+  Gemini 1.5 Flash prompt: cluster profiles with mean F0, duration,
+    harmonics, SNR → behavioral hypothesis per cluster + individual ID
+    inference (similar F0 = similar body size → same individual)
+```
+
+---
+
+## Technology Stack
+
+| Layer | Library / Tool | Version | Role |
+|---|---|---|---|
+| Audio I/O | `librosa` | ≥ 0.10 | WAV load, resample (soxr_hq), STFT, ISTFT |
+| DSP | `scipy` | ≥ 1.11 | butter bandpass, sosfiltfilt, Welch PSD, iircomb notch, find_peaks |
+| Source separation | `scikit-learn` NMF | ≥ 1.3 | KL-divergence NMF, KMeans, StandardScaler, cosine_similarity |
+| Dimensionality reduction | `umap-learn` | ≥ 0.5 | UMAP 2D projection (PCA fallback) |
+| AI hypotheses | `google-generativeai` | ≥ 0.7 | Gemini 1.5 Flash behavioral analysis |
+| Spectrogram output | `matplotlib` | ≥ 3.7 | Before/after comparison PNGs |
+| Noise reduction | `noisereduce` | ≥ 3.0 | Spectral gating (auxiliary) |
+| Serial / IoT | `pyserial` | ≥ 3.5 | SenseCAP Indicator USB serial (115200 baud) |
+| Edge streaming | `paho-mqtt` | ≥ 1.6 | MQTT publish from Raspberry Pi edge listener |
+| Live capture | `sounddevice` | ≥ 0.4.6 | Microphone capture on Raspberry Pi |
+| Graph analysis | `networkx` | ≥ 3.0 | Tribe similarity graph |
+| Concurrency | Python `multiprocessing` | stdlib | Process-per-agent, mp.Queue message passing |
+| Upload server | Python `http.server` | stdlib | WAV upload, base64 decode, CSV entry, pipeline spawn |
+| Env config | `python-dotenv` | ≥ 1.0 | GEMINI_API_KEY, CSV_PATH, OUTPUT_DIR |
+
+---
+
+## Signal Parameters
+
+```python
+# DO NOT change without re-tuning harmonic scoring -
+# TARGET_SR, N_FFT, HOP_LENGTH are tightly coupled.
+
+TARGET_SR          = 4000    # Hz → 1.953 Hz/bin at n_fft=2048
+N_FFT              = 2048
+HOP_LENGTH         = 512     # 87.5% overlap
+N_COMPONENTS       = 10      # NMF basis vectors
+TOP_K_ELEPHANT     = 2       # top-K components classified as elephant
+ELEPHANT_SCORE_MIN = 0.15    # absolute score floor (prevents all-ones mask on silent files)
+PROP_DECREASE      = 0.90    # noise weight in Wiener denominator
+MASK_FLOOR         = 0.25    # hard gate before rescaling
+TEMPORAL_WEIGHT    = 0.35    # fraction of combined score from temporal non-stationarity
+SPECTRAL_SUB_ALPHA = 1.25    # noise reference subtraction strength (car + airplane)
+SPECTRAL_SUB_FLOOR = 0.22    # minimum fraction of original magnitude after subtraction
+BANDPASS_LOW       = 10      # Hz
+BANDPASS_HIGH      = 1000    # Hz
+F0_MIN / F0_MAX    = 10/35   # elephant fundamental range (Hz)
+CONTEXT_SEC        = 1.5     # padding on each side of call for STFT framing
+NOISE_REF_SEC      = 3.0     # seconds of pre-call noise for spectral subtraction
+```
+
+---
+
+## Repository Layout
+
+```
+rumbleos/
+  agents/
+    preprocess.py        Stage 1 - load, resample, bandpass, segment
+    fingerprint.py       Stage 2 - Welch PSD comb/ratio classifier
+    nmf_masking.py       Stage 3 - spectral subtraction + NMF + Wiener mask
+    reconstruction.py   Stage 4 - exponential decay harmonic reconstruction
+    overlap.py           Stage 5 - dual F0 detection + competitive Wiener separation
+    quality_scorer.py    Stage 6 - tonal SNR, harmonic completeness, validity
+    clustering.py        Stage 7 - UMAP + K-means + Tribe graph + Gemini
+    sensecap.py          SenseCAP Indicator serial event streamer
+    base.py              BaseAgent (multiprocessing.Process + queue wiring)
+    runtime.py           OpenBLAS thread-count config for RPi
+    serialization.py     dict → CSV-safe scalar extraction
+  edge/
+    listen.py            Raspberry Pi live capture (sounddevice + MQTT)
+  data/
+    timestamps.csv       call index: filename, start_time, end_time, noise_type
+  results/               output WAVs, spectrograms, CSVs, JSON, hypotheses
+  main.py                pipeline launcher (sequential / parallel / full-file)
+  server.py              HTTP upload server (port 5050)
+  gen_hypotheses.py      standalone Gemini hypothesis regenerator
+  requirements.txt
+
+frontend/
+  src/
+    main.js              routing, data loading, section rendering
+    network-graph/       Sigma.js + ForceAtlas2 knowledge graph (React/TS)
+    components/ui/       shared UI components
+  index.html
+  vite.config.js         serves /results/* from rumbleos/results/
+```
+
+---
+
+## Setup
+
+### Python pipeline
 
 ```bash
-pip install -r rumbleos/requirements.txt
+cd rumbleos
+pip install -r requirements.txt
 ```
 
-### Configure paths
+### Frontend
 
-Open `rumbleos/main.py` and update the three path constants at the bottom:
+```bash
+cd frontend
+npm install
+```
+
+### Environment
+
+Create `.env` in the project root:
+
+```
+GEMINI_API_KEY=your_key_here
+AUDIO_DIR=data/recordings
+CSV_PATH=data/timestamps.csv
+OUTPUT_DIR=results
+```
+
+---
+
+## Running
+
+### Pipeline modes
 
 ```python
-CSV_PATH   = r"C:\path\to\HACKSMU_26\rumbleos\data\timestamps.csv"
-AUDIO_DIR  = r"C:\path\to\recordings"
-OUTPUT_DIR = r"C:\path\to\HACKSMU_26\rumbleos\results"
+# main.py - configure at the top:
+SEQUENTIAL_MODE = True    # single process, full tracebacks (debug)
+FULL_FILE_MODE  = True    # clean entire recording vs. per-call windows only
+N_WORKERS       = 4       # parallel agents (ignored in SEQUENTIAL_MODE)
 ```
-
-### Add recordings
-
-Put your WAV files flat inside `AUDIO_DIR` (no subfolders).
-
-Edit `rumbleos/data/timestamps.csv` to cross-reference known calls:
-
-```
-filename,start_time,end_time,noise_type
-my_recording.wav,15.2,22.7,car
-```
-
-`noise_type` values: `car`, `airplane`, `generator_60hz`, `generator_90hz`,
-`generator_45hz`, `background`. Leave it blank to use the auto-classifier.
-
-### Run
 
 ```bash
 cd rumbleos
 python main.py
 ```
 
-Configure behavior at the top of `main.py`:
-
-```python
-SEQUENTIAL_MODE = True     # True = no multiprocessing, full tracebacks
-FULL_FILE_MODE  = True     # True = clean entire file; False = per-call windows
-N_WORKERS       = 4        # parallel workers (ignored in SEQUENTIAL_MODE)
-```
-
-Set `SEQUENTIAL_MODE = True` when developing. Multiprocessing swallows tracebacks.
-Switch to `False` only for production runs over large batches.
-
-### Outputs
-
-All outputs go to `rumbleos/results/`:
-
-| File | What it is |
-|------|------------|
-| `*_clean.wav` | Full-length denoised recording at native SR, non-elephant regions silent |
-| `*_spectrogram.png` | Before/after spectrogram for each call |
-| `batch_results.csv` | Per-call scalar metrics (SNR, F0, validity, cluster, etc.) |
-| `batch_results_clustered.csv` | Same with UMAP coordinates added |
-| `tribe_edges.csv` | Cosine-similarity graph edges between calls |
-| `cluster_summaries.json` | Cluster centroids and member call IDs |
-| `ai_hypotheses.txt` | Claude's behavioral interpretation (requires API key) |
-
-### Dashboard
+### Upload server
 
 ```bash
-cd rumbleos
-streamlit run dashboard/app.py
+python server.py    # http://localhost:5050
+# POST /api/upload  body: { filename: "rec.wav", data: "<base64>" }
+# POST /api/run     re-run pipeline on existing files
+# GET  /api/status  { status, logs[], progress }
 ```
 
-### Claude API hypotheses
+### Frontend
 
-Set `CLAUDE_API_KEY` in `main.py` to enable AI-generated behavioral notes per cluster,
-saved to `results/ai_hypotheses.txt`.
+```bash
+cd frontend
+npm run dev        # http://localhost:5174
+```
 
 ---
 
-## Best Way to Work on This
+## Deploying
 
-### Changing NMF / masking behavior
+### Backend on Render
 
-Everything that matters lives in `agents/nmf_masking.py`. The constants at the top
-are the primary tuning knobs:
-
-- `TOP_K_ELEPHANT` — how many NMF components count as elephant. Raise to recover
-  more signal; lower to reduce noise leak.
-- `MASK_FLOOR` — hard gate threshold. Lower = more signal passes but more noise too.
-- `TEMPORAL_WEIGHT` — blend between harmonic score and temporal score. Raise it to
-  be more aggressive about filtering stationary harmonics (engine noise that happens
-  to be harmonic).
-- `SPECTRAL_SUB_ALPHA_*` — how aggressively to subtract the noise reference spectrum.
-
-Run the smoke test after any change:
+Use the included `render.yaml`, or create a Python Web Service with:
 
 ```bash
+Build Command: pip install -r rumbleos/requirements.txt
+Start Command: cd rumbleos && python server.py
+Health Check Path: /api/status
+```
+
+Set these environment variables on Render:
+
+```bash
+AUDIO_DIR=data/recordings
+CSV_PATH=data/timestamps.csv
+OUTPUT_DIR=results
+GEMINI_API_KEY=your_key_here   # optional
+```
+
+### Frontend on Vercel
+
+Deploy the `frontend/` directory as a Vite app, then replace `YOUR_RENDER_URL`
+in `frontend/vercel.json` with your Render service URL so `/api/*` and
+`/results/*` proxy to the backend.
+
+### Gemini hypotheses (standalone)
+
+```bash
+cd rumbleos
+python gen_hypotheses.py
+```
+
+---
+
+## Outputs
+
+| File | Description |
+|------|-------------|
+| `*_clean.wav` | Full-length denoised recording; non-elephant regions silent |
+| `*_comparison.png` | Before/after spectrogram per call with F0 harmonic overlays |
+| `batch_results.csv` | Per-call scalars: SNR before/after, F0, completeness, valid, cluster |
+| `batch_results_clustered.csv` | Same + UMAP x/y coordinates |
+| `tribe_edges.csv` | Call-pair similarity graph edges (combined score ≥ 0.72) |
+| `cluster_summaries.json` | Per-cluster: count, mean F0, duration, harmonics, SNR, member IDs |
+| `knowledge_base.json` | Full structured call database with context, UMAP coords, links |
+| `ai_hypotheses.txt` | Gemini behavioral interpretation of each cluster |
+
+---
+
+## Edge Device (Raspberry Pi)
+
+`edge/listen.py` captures 10-second chunks at 4 kHz via `sounddevice`, applies the
+bandpass, and pushes to a local queue or publishes over MQTT for remote processing.
+
+On Pi, reduce memory pressure:
+
+```python
+N_WORKERS = 2
+# in agents/nmf_masking.py: max_iter=200
+```
+
+```bash
+sudo apt install libsndfile1
+```
+
+---
+
+## Smoke Test
+
+```bash
+cd rumbleos
 python -c "
 import numpy as np; from agents.nmf_masking import NMFMaskingAgent
 sr=4000; t=np.linspace(0,10,40000)
 sig=sum(np.sin(2*np.pi*18*n*t)/n for n in range(1,8))
 noisy=sig+np.random.randn(len(t))*0.5
-r=NMFMaskingAgent(0,None,None,name='T').process({'segment':noisy,'sr':sr,'noise_type':'airplane','original':noisy,'call_id':'t'})
+r=NMFMaskingAgent(0,None,None,name='T').process(
+    {'segment':noisy,'sr':sr,'noise_type':'airplane',
+     'original':noisy,'call_id':'t','noise_ref':np.zeros(sr*3)})
 assert 14<=r['detected_f0']<=22, r['detected_f0']
-print('OK — F0=', r['detected_f0'])
+print('Stage 3 OK - F0=', r['detected_f0'])
 "
 ```
-
-### Adding a new pipeline stage
-
-1. Create `agents/my_agent.py`, subclass `BaseAgent`, implement `process(self, msg)`.
-2. `process` receives a dict, returns a dict — add your new keys, pass through the rest.
-3. Wire it into `main.py`: add a queue between the upstream and downstream agents,
-   instantiate your agent, call `.start()`, and send `SENTINEL` at shutdown.
-4. Never mutate `msg` in place — always return `{**msg, "new_key": value}`.
-
-### Debugging a specific stage
-
-Set `SEQUENTIAL_MODE = True` in `main.py` and add print statements. With multiprocessing
-enabled, exceptions in worker processes print to the console but stack traces are
-truncated. Sequential mode runs all agents inline — full Python tracebacks.
-
-You can also call any agent directly from a Python script or REPL:
-
-```python
-from agents.nmf_masking import NMFMaskingAgent
-agent = NMFMaskingAgent(0, None, None, name="debug")
-result = agent.process({"segment": audio, "sr": 4000,
-                        "noise_type": "airplane", "original": audio, "call_id": "test"})
-print(result['detected_f0'], result['mask'].mean())
-```
-
-### Modifying the clustering
-
-The feature vector is in `ClusteringAgent.extract_features()`. Add any scalar field
-from the result dict. If you add a new metric in `quality_scorer.py`, append it there.
-K is auto-tuned to `min(7, n_valid // 3)` — override in `clustering.py` if you need
-a fixed number of clusters.
-
-### Edge device (Raspberry Pi)
-
-The `edge/listen.py` script runs a live capture loop on the Pi. It reads from the
-microphone with `sounddevice`, applies the same 4 kHz bandpass, and sends detection
-events over a socket. The `SenseCapAgent` relays these to the SenseCAP Indicator
-over USB serial at `/dev/ttyUSB0` (115200 baud). Try `/dev/ttyACM0` if the default
-does not connect.
-
-Set `N_WORKERS = 2` and `max_iter = 200` on the Pi to stay within memory constraints.
-
----
-
-## Research Foundation
-
-**Elephant infrasound and communication**
-- Payne, K.B., Langbauer, W.R., Thomas, E.M. (1986). Infrasonic calls of the Asian
-  elephant. *Behavioral Ecology and Sociobiology*, 18, 297–301.
-- Poole, J.H., Payne, K., Langbauer, W.R., Moss, C.J. (1988). The social contexts
-  of some very low frequency calls of African elephants. *Behavioral Ecology and
-  Sociobiology*, 22, 385–392.
-- Poole, J.H. (2005). *Elephant Voices*. ElephantVoices Project, Amboseli. Reference
-  for F0 range, harmonic structure, and the >=5 Hz minimum gap between simultaneous
-  callers used in OverlapAgent.
-
-**NMF for audio source separation**
-- Lee, D.D., Seung, H.S. (1999). Learning the parts of objects by non-negative matrix
-  factorization. *Nature*, 401, 788–791.
-- Fevotte, C., Bertin, N., Durrieu, J.L. (2009). Nonnegative matrix factorization
-  with the Itakura-Saito divergence. *Neural Computation*, 21(3), 793–830. (basis for
-  KL divergence NMF used here)
-- Virtanen, T. (2007). Monaural sound source separation by nonnegative matrix
-  factorization with temporal continuity and sparseness criteria. *IEEE TASLP*, 15(3).
-
-**Wiener filtering**
-- Scalart, P., Filho, J. (1996). Speech enhancement based on a priori signal to noise
-  estimation. *ICASSP*, 351–354. (soft Wiener mask formulation)
-- Ephraim, Y., Malah, D. (1984). Speech enhancement using a minimum mean-square error
-  short-time spectral amplitude estimator. *IEEE TASP*, 32(6), 1109–1121.
-
-**Spectral subtraction**
-- Boll, S. (1979). Suppression of acoustic noise in speech using spectral subtraction.
-  *IEEE Transactions on ASSP*, 27(2), 113–120.
-
-**UMAP dimensionality reduction**
-- McInnes, L., Healy, J., Melville, J. (2018). UMAP: Uniform Manifold Approximation
-  and Projection for Dimension Reduction. *arXiv:1802.03426*.
-
----
-
-## Requirements
-
-```
-numpy>=1.24       scipy>=1.11       librosa>=0.10
-scikit-learn>=1.3 matplotlib>=3.7   sounddevice>=0.4.6
-pyserial>=3.5     paho-mqtt>=1.6    streamlit>=1.28
-pandas>=2.0       plotly>=5.0       networkx>=3.0
-anthropic>=0.25   umap-learn>=0.5   noisereduce>=3.0
-```
-
-Python 3.10+. Tested on Ubuntu 22.04 and Windows 11.
-On Raspberry Pi, run `sudo apt install libsndfile1` before `pip install soundfile`.
 
 ---
 
@@ -495,8 +646,21 @@ On Raspberry Pi, run `sudo apt install libsndfile1` before `pip install soundfil
 | `librosa.load` fails | `pip install soundfile` |
 | `iircomb` not found | `pip install "scipy>=1.9"` |
 | NMF slow | Set `max_iter=200` for testing |
-| SenseCAP not connecting | Try `/dev/ttyACM0` instead of `/dev/ttyUSB0` |
 | UMAP install fails | Falls back to PCA automatically |
 | Queue deadlock | Set `SEQUENTIAL_MODE = True` |
 | Out of memory on Pi | Set `N_WORKERS=2`, `max_iter=200` |
-| NMF F0 wrong | Verify `sr=4000`, `n_fft=2048`; increase `max_iter` to 600 |
+| NMF F0 wrong | Verify `sr=4000`, `n_fft=2048`; raise `max_iter` to 600 |
+| Gemini 429 quota | Free tier limit - retry after 60 s or rotate key |
+| All-ones mask (0 dB) | Raise `ELEPHANT_SCORE_MIN`; check `TOP_K_ELEPHANT` |
+
+---
+
+## Research Foundation
+
+- Payne et al. (1986) - infrasonic calls of the Asian elephant
+- Poole et al. (1988) - social contexts of low-frequency elephant calls  
+- Poole (2005) - F0 range and ≥ 5 Hz gap between simultaneous callers
+- Lee & Seung (1999) - NMF for parts-based representations
+- Févotte et al. (2009) - NMF with KL divergence (beta=1 multiplicative updates)
+- Scalart & Filho (1996) - Wiener filter from a priori SNR estimation
+- McInnes et al. (2018) - UMAP: Uniform Manifold Approximation and Projection

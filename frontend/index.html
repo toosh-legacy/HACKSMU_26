@@ -7,7 +7,7 @@
   <meta name="description" content="Tribal removes mechanical noise from elephant infrasound recordings and discovers communication patterns across herds." />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Lora:ital,wght@0,400;0,500;1,400;1,500&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="/src/style.css" />
 </head>
 <body>
@@ -28,24 +28,28 @@
       <div id="aurora-banner" style="position:absolute;inset:0;width:100%;height:100%;z-index:0;"></div>
 
       <div class="hero">
+        <div class="hero-chips">
+          <span class="hero-chip">Noise removal</span>
+          <span class="hero-chip-dot"></span>
+          <span class="hero-chip">Call separation</span>
+          <span class="hero-chip-dot"></span>
+          <span class="hero-chip">Behavioural insights</span>
+        </div>
         <h1>HEAR WHAT THE<br/><span>EARTH HIDES.</span></h1>
-        <p>A multi-agent pipeline that strips mechanical noise from field recordings and uncovers elephant communication patterns buried in infrasound.</p>
-      </div>
-
-      <!-- Gradient CTA section -->
-      <div class="hero-gradient-section">
+        <p>Upload a noisy .wav file → 7 agents strip airplane, car &amp; generator noise → get clean audio and behavioural insights from elephant calls.</p>
         <button class="process-btn" id="process-btn">
           <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>
           Process Recordings
         </button>
-
-        <!-- Footer -->
-        <footer class="landing-footer">
-          <p>Built at <strong>HackSMU</strong></p>
-          <p class="footer-copy">© 2026 Tribal. All rights reserved.</p>
-        </footer>
+        <p class="hero-scroll-hint">↓ scroll to see how it works</p>
       </div>
+
     </section>
+
+    <!-- ── Homepage Content ──────────────────────────────────── -->
+    <div id="homepage-content">
+      <div id="homepage-react-root"></div>
+    </div>
 
     <!-- ── App Shell ───────────────────────────────────── -->
     <div class="app-content" id="app-content">
@@ -125,6 +129,35 @@
       <section id="section-network" class="section" style="padding: 0; background: var(--charcoal); position: relative; overflow: hidden;">
         <!-- React mounts here. position:absolute fills the flex-sized section without needing height:100% inheritance. -->
         <div id="react-network-root" style="position: absolute; top: 0; left: 0; right: 0; bottom: 0;"></div>
+      </section>
+
+      <section id="section-upload" class="section">
+        <div class="section-header">
+          <h2 class="section-title">Upload</h2>
+          <p class="section-desc">Drop a .wav field recording — the pipeline runs automatically and all views refresh when done.</p>
+        </div>
+
+        <!-- Drop zone -->
+        <div id="upload-dropzone" class="upload-dropzone">
+          <input type="file" id="upload-file-input" accept=".wav" style="display:none" />
+          <div class="upload-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+          </div>
+          <p class="upload-hint">Drop a <strong>.wav</strong> file here, or <span class="upload-browse">click to browse</span></p>
+          <p class="upload-sub">File is saved to the recordings directory and the full pipeline runs.</p>
+        </div>
+
+        <!-- Status card -->
+        <div id="upload-status-card" class="upload-status-card" style="display:none">
+          <div class="upload-status-header">
+            <span id="upload-status-badge" class="upload-status-badge">Idle</span>
+            <span id="upload-filename-label" class="upload-filename-label"></span>
+          </div>
+          <div class="upload-progress-track">
+            <div id="upload-progress-bar" class="upload-progress-bar" style="width:0%"></div>
+          </div>
+          <div id="upload-log" class="upload-log"></div>
+        </div>
       </section>
     </div>
   </div>

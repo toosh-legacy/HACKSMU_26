@@ -1,0 +1,17 @@
+services:
+  - type: web
+    name: rumbleos-api
+    env: python
+    plan: free
+    buildCommand: pip install -r rumbleos/requirements.txt
+    startCommand: cd rumbleos && python server.py
+    healthCheckPath: /api/status
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.9
+      - key: AUDIO_DIR
+        value: data/recordings
+      - key: CSV_PATH
+        value: data/timestamps.csv
+      - key: OUTPUT_DIR
+        value: results
